@@ -1494,8 +1494,7 @@ export default {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               if (isDir) {
-                if (e.ctrlKey || e.metaKey) { if (node.path !== rootPath) navigate(node.path) }
-                else toggleDir(node.path)
+                toggleDir(node.path)
               } else {
                 openFile(node)
               }
@@ -1588,7 +1587,7 @@ export default {
             }, iconEl('filter', 14)),
           ) : null,
         ),
-        el('div', { className: 'fm-hint' }, '单击展开/预览，双击或 Ctrl+Enter 进入目录，右键更多操作'),
+        el('div', { className: 'fm-hint' }, '单击展开/预览，双击进入目录，右键更多操作'),
         el('div', { className: 'fm-path', title: rootPath }, rootPath || ''),
         busy ? el('div', { className: 'fm-busy' }, '…') : null,
         el('div', {
