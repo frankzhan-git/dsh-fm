@@ -19,6 +19,8 @@
 
 ## 快速安装（免构建）
 
+> 也可以直接下载现成安装包：**[Releases 页面](https://github.com/frankzhan-git/dsh-fm/releases)** 下载 `dsh-fm-0.1.0.zip`，解压后运行其中的 `install.ps1` 一键安装（内置安装/使用文档）。
+
 直接安装本仓库（`lib/` 已包含预构建产物）：
 
 ```powershell
