@@ -3,6 +3,22 @@
 // timer → 原生 setInterval；mermaid → 官方 mermaid.js（构建时内联）。
 import React from 'react'
 import mermaid from 'mermaid'
+import {
+  IconTriangleRightFill14,
+  IconFolderClose16,
+  IconFolderOpen16,
+  IconCloseOutline16,
+  IconCloseFill14,
+  IconChevronUpOutline14,
+  IconRefreshOutline14,
+  IconBranchOutline16,
+  IconSearchOutline16,
+  IconCodeOutline16,
+  IconBrowseOutline16,
+  IconLinkOutline14,
+  IconTrashOutline16,
+  IconPanelLeftOutline16,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 
 const FM_CSS = `
 .fm-container {
@@ -628,40 +644,17 @@ export default {
       return a.name.localeCompare(b.name, 'zh', { numeric: true })
     })
 
-    const ICONS = {
-      chevron: { p: ['M6 3.5 11.5 8 6 12.5'] },
-      folder: { p: ['M1.5 4A1.5 1.5 0 0 1 3 2.5h3l1.5 2H13A1.5 1.5 0 0 1 14.5 6v6A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12z'] },
-      close: { p: ['M4 4l8 8', 'M12 4l-8 8'] },
-      more: { p: [], c: [[8, 3.2, 1.1], [8, 8, 1.1], [8, 12.8, 1.1]] },
-      'arrow-up': { p: ['M8 2.5v11', 'M3.5 7 8 2.5 12.5 7'] },
-      refresh: { p: ['M13.5 8A5.5 5.5 0 1 1 8 2.5c2 0 3.8 1.1 4.8 2.7', 'M13.5 1.8v3.4h-3.4'] },
-      link: { p: ['M6.7 8.7a3.3 3.3 0 0 1 4.7 0l2-2a3.3 3.3 0 1 0-4.7-4.7l-1.1 1.1', 'M9.3 7.3a3.3 3.3 0 0 1-4.7 0l-2-2a3.3 3.3 0 1 1 4.7-4.7l1.1 1.1'] },
-      trash: { p: ['M3 4.5h10', 'M6.5 2.5h3', 'M4.8 4.5l.7 8.6a1 1 0 0 0 1 .9h3a1 1 0 0 0 1-.9l.7-8.6', 'M6.6 7v4.5', 'M9.4 7v4.5'] },
-      check: { p: ['M3.5 8.5 6.5 11.5 12.5 5'] },
-      commit: { p: ['M8 2.5v4.4', 'M5.2 4.8 8 7.6 10.8 4.8'], c: [[8, 10.6, 1.7]] },
-      filter: { p: ['M2.5 3.5h11', 'M5.5 8h5', 'M7.5 12.5h1'] },
-      diff: { p: ['M4 2.5h5L13 6.5v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z', 'M9 2.5V6.5H13', 'M6.5 8.5v3', 'M5 10h3'] },
-      md: { p: ['M2.5 3.5h11v9h-11z', 'M5 6.5l1.8 2.5L8.6 6.5l1.8 2.5L12 6.5'] },
-      'file-view': { p: ['M4 2.5h5.5L13 6v7.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z', 'M9.5 2.5V6H13', 'M5.9 9.2c.8-1.3 2-2 2.7-2s1.9.7 2.7 2c-.8 1.3-2 2-2.7 2s-1.9-.7-2.7-2z'], c: [[8.6, 9.2, 0.7]] },
-    }
-    const iconEl = (name, size, cls) => {
-      const conf = ICONS[name] || ICONS.folder
-      const s = size || 16
-      const kids = []
-      for (const d of conf.p || []) kids.push(el('path', { d }))
-      for (const c of conf.c || []) kids.push(el('circle', { cx: c[0], cy: c[1], r: c[2], fill: 'currentColor', stroke: 'none' }))
-      return el('svg', {
-        viewBox: '0 0 16 16',
-        fill: 'none',
-        stroke: 'currentColor',
-        strokeWidth: 1.5,
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        style: { width: s, height: s, display: 'block' },
-        className: cls || undefined,
-        'aria-hidden': true,
-      }, kids)
-    }
+    // 图标统一使用 DSH 内置图标库（@deepseek-ai/dsh-client-ui-primitives），
+    // 语义映射：
+    //   树展开箭头 → IconTriangleRightFill14（官方树箭头，展开时容器旋转 90°）
+    //   目录       → IconFolderClose16 / IconFolderOpen16（按展开状态）
+    //   关闭       → IconCloseOutline16 / IconCloseFill14（小尺寸用填充版）
+    //   预览窗口   → IconPanelLeftOutline16   上级目录 → IconChevronUpOutline14
+    //   刷新       → IconRefreshOutline14      提交     → IconBranchOutline16（git 分支语义）
+    //   筛选       → IconSearchOutline16       Diff     → IconCodeOutline16
+    //   MD 预览    → IconBrowseOutline16       引用     → IconLinkOutline14
+    //   删除       → IconTrashOutline16
+
 
     const FILE_STYLE = {
       js: { label: 'JS', bg: '#f0db4f', fg: '#1f2329' },
@@ -1449,12 +1442,12 @@ export default {
                 className: 'fm-diff-btn' + (pv.diff ? ' fm-diff-btn-on' : ''),
                 title: pv.diff ? '退出 Diff 查看' : 'Diff 查看',
                 onClick: () => toggleDiff(pv),
-              }, iconEl('diff', 14)) : null,
+              }, el(IconCodeOutline16, { size: 14 })) : null,
               (extOf(pv.name) === 'md' || extOf(pv.name) === 'markdown') ? el('button', {
                 className: 'fm-md-btn' + (pv.md ? ' fm-md-btn-on' : ''),
                 title: pv.md ? '文本视图' : '预览渲染',
                 onClick: () => toggleMd(pv),
-              }, iconEl('md', 14)) : null,
+              }, el(IconBrowseOutline16, { size: 14 })) : null,
             ),
           )
         }
@@ -1528,8 +1521,8 @@ export default {
         const dg = isDir ? dirGit[node.path] : null
         const row = el('div', rowProps,
           el('span', { className: 'fm-icon' },
-            isDir ? el('span', { className: 'fm-chev' + (node.expanded ? ' fm-chev-open' : '') }, iconEl('chevron', 12)) : el('span', { className: 'fm-chev-gap' }),
-            isDir ? iconEl('folder', 16) : fileBadge(node.name),
+            isDir ? el('span', { className: 'fm-chev' + (node.expanded ? ' fm-chev-open' : '') }, el(IconTriangleRightFill14, { size: 12 })) : el('span', { className: 'fm-chev-gap' }),
+            isDir ? el(node.expanded ? IconFolderOpen16 : IconFolderClose16, { size: 16 }) : fileBadge(node.name),
           ),
           el('span', { className: 'fm-name' }, node.name),
           g && !isDir && (g.added > 0 || g.deleted > 0) ? el('span', { className: 'fm-git-diff' },
@@ -1556,10 +1549,10 @@ export default {
           className: 'fm-btn fm-eye-btn' + (previewVisible ? ' fm-eye-btn-on' : ' fm-eye-btn-hidden'),
           title: previewVisible ? '隐藏预览窗口' : '显示预览窗口',
           onClick: () => setPreviewVisible(!previewVisible),
-        }, iconEl('file-view', 16)) : null,
+        }, el(IconPanelLeftOutline16, { size: 16 })) : null,
         el('span', { className: 'fm-title fm-title-click', title: '回到工作目录', onClick: goWorkspaceRoot }, '工作目录'),
         el('span', { className: 'fm-spacer' }),
-        el('button', { className: 'fm-btn', title: '关闭', onClick: closeAll }, iconEl('close', 14)),
+        el('button', { className: 'fm-btn', title: '关闭', onClick: closeAll }, el(IconCloseOutline16, { size: 14 })),
       )
 
       const hasChanges = gitInfo && gitInfo.hasRepo && gitInfo.files.length > 0
@@ -1567,8 +1560,8 @@ export default {
         head,
         error ? el('div', { className: 'fm-error' }, error) : null,
         el('div', { className: 'fm-toolbar' },
-          el('button', { className: 'fm-btn', title: '上级目录', disabled: !rootPath, onClick: goParent }, iconEl('arrow-up', 14), '上级'),
-          el('button', { className: 'fm-btn', title: '刷新', disabled: !rootPath, onClick: () => loadDir(rootPath) }, iconEl('refresh', 14), '刷新'),
+          el('button', { className: 'fm-btn', title: '上级目录', disabled: !rootPath, onClick: goParent }, el(IconChevronUpOutline14, { size: 14 }), '上级'),
+          el('button', { className: 'fm-btn', title: '刷新', disabled: !rootPath, onClick: () => loadDir(rootPath) }, el(IconRefreshOutline14, { size: 14 }), '刷新'),
           el('span', { className: 'fm-spacer' }),
           gitInfo && gitInfo.hasRepo ? el('div', { className: 'fm-git' },
             el('span', { className: 'fm-git-stat', title: '未提交变更统计' },
@@ -1579,12 +1572,12 @@ export default {
               className: 'fm-git-btn',
               title: '提交变更',
               onClick: () => setCommitOpen(true),
-            }, iconEl('commit', 14)) : null,
+            }, el(IconBranchOutline16, { size: 14 })) : null,
             el('button', {
               className: 'fm-git-btn' + (diffOnly ? ' fm-git-btn-on' : ''),
               title: diffOnly ? '显示全部文件' : '仅显示变更文件',
               onClick: () => setDiffOnly(!diffOnly),
-            }, iconEl('filter', 14)),
+            }, el(IconSearchOutline16, { size: 14 })),
           ) : null,
         ),
         el('div', { className: 'fm-hint' }, '单击展开/预览，双击进入目录，右键更多操作'),
@@ -1651,7 +1644,7 @@ export default {
                   className: 'fm-tab-close',
                   title: '关闭',
                   onClick: (e) => { e.stopPropagation(); closeTab(tab.key) },
-                }, iconEl('close', 11)),
+                }, el(IconCloseFill14, { size: 11 })),
               )),
             ),
             tabLeftFade ? el('div', { className: 'fm-tab-fade fm-tab-fade-left' }) : null,
@@ -1661,7 +1654,7 @@ export default {
             className: 'fm-btn fm-tab-closeall',
             title: '关闭全部选项卡',
             onClick: () => setCloseAllConfirm(true),
-          }, iconEl('close', 14)),
+          }, el(IconCloseOutline16, { size: 14 })),
         ),
         closeAllConfirm ? el(React.Fragment, null,
           el('div', { className: 'fm-menu-backdrop', onClick: () => setCloseAllConfirm(false) }),
@@ -1688,8 +1681,8 @@ export default {
               el('button', { className: 'fm-btn', onClick: () => setMenu(null) }, '取消'),
             ),
           ] : [
-            el('div', { className: 'fm-menu-item', key: 'r', tabIndex: 0, onClick: doReference, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); doReference() } } }, iconEl('link', 14), '引用到会话'),
-            menu.path === rootPath ? null : el('div', { className: 'fm-menu-item fm-menu-danger', key: 'd', tabIndex: 0, onClick: () => setMenu(Object.assign({}, menu, { confirm: true })), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMenu(Object.assign({}, menu, { confirm: true })) } } }, iconEl('trash', 14), '删除'),
+            el('div', { className: 'fm-menu-item', key: 'r', tabIndex: 0, onClick: doReference, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); doReference() } } }, el(IconLinkOutline14, { size: 14 }), '引用到会话'),
+            menu.path === rootPath ? null : el('div', { className: 'fm-menu-item fm-menu-danger', key: 'd', tabIndex: 0, onClick: () => setMenu(Object.assign({}, menu, { confirm: true })), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMenu(Object.assign({}, menu, { confirm: true })) } } }, el(IconTrashOutline16, { size: 14 }), '删除'),
           ],
         ),
       ) : null
@@ -1725,7 +1718,7 @@ export default {
           }
           setOpen(!store.open)
         },
-      }, iconEl('folder', 16), el('span', null, '文件'))
+      }, el(IconFolderClose16, { size: 16 }), el('span', null, '文件'))
     }
 
     slots.inject('conversation.session.header.utilities', () => slots.register(
