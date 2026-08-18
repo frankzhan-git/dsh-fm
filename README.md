@@ -84,7 +84,9 @@ dsh-fm-plugin/
 │       ├── menu.js            #   菜单/浮窗样式
 │       └── index.js           #   FM_CSS 聚合
 ├── lib/
-│   ├── index.js        # host 半：文件读写、git 命令、/api/fm 路由（纯 ESM，无需构建）
+│   ├── index.js        # host 入口：服务获取 + /api/fm 路由注册（薄入口，同 dsh-kb 模式）
+│   ├── fm-core.js      # host 业务核心：文件浏览/读取/删除、git 状态/差异/提交（依赖注入工厂）
+│   ├── fm-mermaid.js   # mermaid 子集渲染器（flowchart/sequenceDiagram/pie → SVG，纯函数）
 │   └── client.js       # 客户端预构建产物（esbuild 打包 src/** → 单个 ModuleLoader bundle，内联 Mermaid）
 ├── scripts/build.mjs   # esbuild 构建脚本（入口 src/client.js）
 ├── cordis.patch.yml    # profile bundle 补丁层（插件注册行）
