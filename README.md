@@ -8,8 +8,9 @@
 
 ## 功能特性
 
+- **全局弹窗**：与 DSH 设置面板同款居中弹窗（遮罩模糊 + 圆角面板，Esc / 遮罩点击 / 关闭按钮均可关闭）；左侧为文件目录树与全部相关功能，右侧为预览面板
 - **树形浏览**：单击展开/收起，双击进入目录，标题可一键回到工作区根
-- **预览窗口**：多选项卡（上限 20），代码语法着色（30+ 语言）、图片、Markdown 渲染（含 Mermaid 图；`.md` 默认渲染预览，可一键切回源码）
+- **预览面板**：默认常显（无打开文件时显示空态引导），多选项卡（上限 20），代码语法着色（30+ 语言）、图片、Markdown 渲染（含 Mermaid 图；`.md` 默认渲染预览，可一键切回源码）；选项卡右键菜单提供「关闭当前 / 右侧 / 左侧 / 其他 / 全部」五种关闭模式（无可关闭对象时禁用但保留显示）
 - **Git 可视化**：
   - 工具栏 +/− 总变更、提交按钮（↓ 图标）、「仅显示变更文件」筛选
   - 文件行 +/− 徽标；目录行聚合徽标（`N files +X −Y`，悬停看明细）
@@ -55,14 +56,42 @@ npm run build   # esbuild 打包 src/client.js → lib/client.js
 
 ```
 dsh-fm-plugin/
-├── src/client.js       # 客户端源码（React.createElement，DSH 主题 token）
+├── src/
+│   ├── client.js              # 插件入口：样式注入 + 槽位注册（仅装配）
+│   ├── core/                  # 纯逻辑（零 React 依赖）
+│   │   ├── constants.js       #   全局常量（选项卡上限/轮询间隔/双击窗口/高亮上限）
+│   │   ├── format.js          #   路径/大小/排序工具
+│   │   ├── highlight.js       #   语法高亮分词（30+ 语言关键字表）
+│   │   ├── diff.js            #   git diff 文本解析
+│   │   ├── api.js             #   /api/fm RPC 封装
+│   │   └── store.js           #   跨组件共享的轻量会话状态 + useOpen
+│   ├── hooks/                 # 状态机（业务逻辑）
+│   │   ├── useFmWorkspace.js  #   文件树（懒加载/轮询）+ git 状态（聚合徽标/筛选）
+│   │   └── useFmPreviews.js   #   预览选项卡（打开/读取/区间关闭/删除联动清理）
+│   ├── components/            # UI 组件（React.createElement）
+│   │   ├── FmModal.js         #   弹窗控制器：编排两个 Hook + 行右键菜单/删除/引用
+│   │   ├── TreePanel.js       #   左侧树列（工具栏/git/提交/列表行）
+│   │   ├── PreviewPanel.js    #   右侧预览列（头部/选项卡/正文/空态/二次确认）
+│   │   ├── TabBar.js          #   选项卡栏（渐隐蒙层 + 右键关闭菜单）
+│   │   ├── ContextMenu.js     #   通用右键菜单（含 disabled 项）
+│   │   ├── Markdown.js        #   Markdown 渲染 + Mermaid（mermaid 唯一引用点）
+│   │   ├── FileBadge.js       #   文件类型徽标
+│   │   └── FilesButton.js     #   会话标题栏「文件」入口
+│   └── css/                   # 样式按区域拆分，构建时拼接
+│       ├── base.js            #   弹窗壳/按钮/错误条/reduced-motion
+│       ├── tree.js            #   树列样式
+│       ├── preview.js         #   预览列样式
+│       ├── menu.js            #   菜单/浮窗样式
+│       └── index.js           #   FM_CSS 聚合
 ├── lib/
-│   ├── index.js        # host 半：文件读写、git 命令、/api/fm 路由
-│   └── client.js       # 客户端预构建产物（esbuild 打包，内联 Mermaid）
-├── scripts/build.mjs   # esbuild 构建脚本
+│   ├── index.js        # host 半：文件读写、git 命令、/api/fm 路由（纯 ESM，无需构建）
+│   └── client.js       # 客户端预构建产物（esbuild 打包 src/** → 单个 ModuleLoader bundle，内联 Mermaid）
+├── scripts/build.mjs   # esbuild 构建脚本（入口 src/client.js）
 ├── cordis.patch.yml    # profile bundle 补丁层（插件注册行）
 └── package.json        # 包清单（dsh.bundle / dsh.client 声明）
 ```
+
+> **架构约定**：`core/` 保持零 React 依赖、便于单测；`hooks/` 集中管理状态与副作用，组件保持「渲染 + 回调」薄层；新增功能优先落在对应模块，避免回退为单文件开发。`lib/client.js` 是 ModuleLoader 单 bundle 产物（加载器要求一个插件一个模块），源码层面已彻底模块化。
 
 ## 工作原理
 
