@@ -23,7 +23,8 @@ export default {
     ctx.effect(() => () => { if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl) })
 
     slots.inject('sidebar.footer.action', () => slots.register(
-      // order 5：紧邻知识库（order 10）之前；配合 CSS 网格将两者合并为同一行、横向均分
+      // order 5：紧邻知识库（order 10）之前；容器为原生 flex 横向行，
+      // 配合 CSS 将两者 flex:1 均分同一行（cordis 面板 flex-basis 100% 独占一行）
       { name: 'sidebar.footer.action', id: 'fm-action', order: 5, label: '文件' },
       (props) => el(SidebarAction, props),
     ))
