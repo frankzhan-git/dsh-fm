@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在侧边栏底部提供「文件」入口（与「知识库」同位置同形式），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并可视化 Git 变更状态。完全开源。
+一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在侧边栏底部提供「文件」入口（与「知识库」横向均分同一行），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并可视化 Git 变更状态。完全开源。
 
 ![dsh-fm 产品预览](view.png)
 

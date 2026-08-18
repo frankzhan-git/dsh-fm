@@ -56,4 +56,21 @@ export const MENU_CSS = `
   width: 36px; height: 36px; margin: 8px 0 10px; padding: 0;
 }
 .fm-sidebar-label { white-space: nowrap; overflow: hidden; }
+/* 与知识库横向均分一行（仅 wide 模式）：底部操作容器转为双列网格——
+   cordis 面板独占整行，文件/知识库各占一列，避免纵向堆叠把入口挤出侧边栏；
+   rail（收起）模式下按钮带 fm-sidebar-btn-rail，规则不命中，保持官方纵向圆形堆叠 */
+div:has(> .fm-sidebar-btn:not(.fm-sidebar-btn-rail)) {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  align-items: stretch;
+}
+div:has(> .fm-sidebar-btn:not(.fm-sidebar-btn-rail)) > :not(.fm-sidebar-btn):not(.kb-sidebar-btn) {
+  grid-column: 1 / -1;
+}
+div:has(> .fm-sidebar-btn:not(.fm-sidebar-btn-rail)) > .fm-sidebar-btn,
+div:has(> .fm-sidebar-btn:not(.fm-sidebar-btn-rail)) > .kb-sidebar-btn {
+  width: auto;
+  margin: 2px;
+}
 `

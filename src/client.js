@@ -23,9 +23,8 @@ export default {
     ctx.effect(() => () => { if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl) })
 
     slots.inject('sidebar.footer.action', () => slots.register(
-      // order -1：排到底部操作栈最顶（cordis 面板 order 0、知识库 order 10 之后依次排列），
-      // 形成「文件 → 知识库 → 设置」的上下结构
-      { name: 'sidebar.footer.action', id: 'fm-action', order: -1, label: '文件' },
+      // order 5：紧邻知识库（order 10）之前；配合 CSS 网格将两者合并为同一行、横向均分
+      { name: 'sidebar.footer.action', id: 'fm-action', order: 5, label: '文件' },
       (props) => el(SidebarAction, props),
     ))
 
