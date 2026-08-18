@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在会话标题栏提供「文件」入口，树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并可视化 Git 变更状态。完全开源。
+一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在侧边栏底部提供「文件」入口（与「知识库」同位置同形式），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并可视化 Git 变更状态。完全开源。
 
 ![dsh-fm 产品预览](view.png)
 
@@ -15,7 +15,7 @@
   - 工具栏 +/− 总变更、提交按钮（↓ 图标）、「仅显示变更文件」筛选
   - 文件行 +/− 徽标；目录行聚合徽标（`N files +X −Y`，悬停看明细）
   - 未被 git 索引（未跟踪/被 .gitignore 忽略）的文件与文件夹整体暗色显示
-- **右键菜单**：引用路径到会话输入框、删除（限工作目录内，二次确认）
+- **右键菜单**：复制路径（根作用域入口回退为剪贴板复制）、删除（限工作目录内，二次确认）
 - **体验细节**：上下滚动渐变蒙层、未索引内容悬停恢复亮度、250ms 手动双击检测、DSH 主题 token 自适应（深浅色跟随）
 
 ## 快速安装（免构建）
@@ -76,7 +76,7 @@ dsh-fm-plugin/
 │   │   ├── ContextMenu.js     #   通用右键菜单（含 disabled 项）
 │   │   ├── Markdown.js        #   Markdown 渲染 + Mermaid（mermaid 唯一引用点）
 │   │   ├── FileBadge.js       #   文件类型徽标
-│   │   └── FilesButton.js     #   会话标题栏「文件」入口
+│   │   └── SidebarAction.js   #   侧边栏底部「文件」入口（与知识库同区同形式）
 │   └── css/                   # 样式按区域拆分，构建时拼接
 │       ├── base.js            #   弹窗壳/按钮/错误条/reduced-motion
 │       ├── tree.js            #   树列样式

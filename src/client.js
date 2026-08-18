@@ -1,11 +1,12 @@
 // dsh-fm client half —— 正式插件入口（esbuild 构建为 ModuleLoader bundle）
 // 模块化架构：src/client.js 仅做装配（样式注入 + 槽位注册），
 // 业务状态见 src/hooks/*，UI 组件见 src/components/*，纯逻辑见 src/core/*，样式见 src/css/*
+// 入口位置：侧边栏底部（sidebar.footer.action，与知识库同区同形式）；
 // 与动态版的差异：host.call → fetch('/api/fm')；styles.insert → DOM 注入；
 // timer → 原生 setInterval；mermaid → 官方 mermaid.js（构建时内联，唯一引用点在 components/Markdown.js）。
 import React from 'react'
 import { FM_CSS } from './css/index.js'
-import { FilesButton } from './components/FilesButton.js'
+import { SidebarAction } from './components/SidebarAction.js'
 import { FmModal } from './components/FmModal.js'
 
 const el = React.createElement
@@ -21,9 +22,9 @@ export default {
     document.head.appendChild(styleEl)
     ctx.effect(() => () => { if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl) })
 
-    slots.inject('conversation.session.header.utilities', () => slots.register(
-      { name: 'conversation.session.header.utilities', id: 'fm-files', order: 10, label: '文件' },
-      (props) => el(FilesButton, props),
+    slots.inject('sidebar.footer.action', () => slots.register(
+      { name: 'sidebar.footer.action', id: 'fm-action', order: 10, label: '文件' },
+      (props) => el(SidebarAction, props),
     ))
 
     slots.inject('shell.overlay', () => slots.register(

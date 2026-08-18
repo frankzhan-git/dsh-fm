@@ -10,7 +10,7 @@ export const setOpen = (open) => {
   listeners.forEach((fn) => fn(open))
 }
 
-// 弹窗开关订阅 Hook（FilesButton 与 FmModal 共用）
+// 弹窗开关订阅 Hook（SidebarAction 与 FmModal 共用）
 export function useOpen() {
   const [open, set] = React.useState(store.open)
   React.useEffect(() => subscribe(set), [])

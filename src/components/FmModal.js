@@ -35,12 +35,30 @@ export function FmModal() {
   // 弹窗关闭仅收起界面；目录记忆与已打开的预览选项卡保留（重开恢复）
   const closeModal = () => setOpen(false)
 
-  const doReference = () => {
+  const doReference = async () => {
     if (!menu) return
     const ref = '`' + menu.path + '`'
-    const prev = store.draft || ''
-    const next = (prev ? prev + '\n' : '') + ref + ' '
-    if (store.inputActions) store.inputActions.setDraft(next)
+    // 入口移至侧边栏底部（根作用域）后不再持有输入框上下文：
+    // 有 inputActions（旧会话标题栏路径）时插入输入框草稿，否则回退为复制路径
+    if (store.inputActions && store.inputActions.setDraft) {
+      const prev = store.draft || ''
+      store.inputActions.setDraft((prev ? prev + '\n' : '') + ref + ' ')
+    } else {
+      try {
+        await navigator.clipboard.writeText(ref)
+      } catch (e) {
+        try {
+          const ta = document.createElement('textarea')
+          ta.value = ref
+          ta.style.position = 'fixed'
+          ta.style.opacity = '0'
+          document.body.appendChild(ta)
+          ta.select()
+          document.execCommand('copy')
+          document.body.removeChild(ta)
+        } catch (e2) { /* 复制失败则忽略 */ }
+      }
+    }
     setMenu(null)
   }
 
@@ -78,7 +96,7 @@ export function FmModal() {
         el('button', { className: 'fm-btn', onClick: () => setMenu(null) }, '取消'),
       ),
     ] : [
-      el(MenuItem, { key: 'r', icon: IconLinkOutline14, onClick: doReference }, '引用到会话'),
+      el(MenuItem, { key: 'r', icon: IconLinkOutline14, onClick: doReference }, store.inputActions && store.inputActions.setDraft ? '引用到会话' : '复制路径'),
       menu.path === ws.rootPath ? null : el(MenuItem, { key: 'd', icon: IconTrashOutline16, danger: true, onClick: () => setMenu(Object.assign({}, menu, { confirm: true })) }, '删除'),
     ],
   ) : null
