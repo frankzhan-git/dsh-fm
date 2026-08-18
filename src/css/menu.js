@@ -35,14 +35,15 @@ export const MENU_CSS = `
   font-size: 12px;
 }
 .fm-commit-input:focus { outline: 2px solid var(--fm-accent); outline-offset: -1px; }
-/* 侧边栏底部入口（与知识库同位置同形式）：wide = 图标+文字行，rail = 圆形图标 */
+/* 侧边栏底部入口（与知识库同位置同形式，略紧凑以适配多入口并排）：
+   wide = 图标+文字行，rail = 圆形图标 */
 .fm-sidebar-btn {
   box-sizing: border-box; cursor: pointer;
-  width: calc(100% + 8px); height: 34px;
+  width: calc(100% + 8px); height: 32px;
   color: var(--dsw-alias-label-primary, #1f2329);
   background: transparent; border: none; border-radius: 12px;
   flex: none; align-items: center; gap: 8px;
-  margin: 4px -4px; padding: 6px 2px 6px 10px;
+  margin: 2px -4px; padding: 4px 2px 4px 10px;
   font-family: inherit; font-size: 14px; line-height: 22px;
   display: flex; overflow: hidden;
   transition: background-color .1s ease;

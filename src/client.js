@@ -23,7 +23,8 @@ export default {
     ctx.effect(() => () => { if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl) })
 
     slots.inject('sidebar.footer.action', () => slots.register(
-      { name: 'sidebar.footer.action', id: 'fm-action', order: 10, label: '文件' },
+      // order 5：排在知识库（order 10）之前——底部空间不足时 KB/设置先被裁剪，文件入口保持可见
+      { name: 'sidebar.footer.action', id: 'fm-action', order: 5, label: '文件' },
       (props) => el(SidebarAction, props),
     ))
 
