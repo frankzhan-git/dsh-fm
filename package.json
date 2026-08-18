@@ -1,6 +1,6 @@
 {
   "name": "dsh-fm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "工作目录文件管理器：树形浏览、只读预览（代码/图片/Markdown/Mermaid）、Git 变更管理",
   "private": true,
   "type": "module",
