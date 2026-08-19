@@ -56,11 +56,17 @@ export const BASE_CSS = `
   padding: 22px 16px 10px;
   font-size: 16px; font-weight: 500; line-height: 24px;
   color: var(--fm-text);
-  cursor: pointer;
-  border-radius: 6px;
 }
-.fm-tree-title:hover { background: var(--fm-hover); color: var(--fm-accent); }
-.fm-tree-title:focus-visible { outline: 2px solid var(--fm-accent); outline-offset: -2px; }
+/* 「工作目录」为紧凑按钮：hover 只作用于按钮本身，不铺满整行 */
+.fm-tree-title-btn {
+  display: inline-flex; align-items: center;
+  padding: 4px 10px;
+  background: transparent; border: none; border-radius: 6px;
+  font: inherit; color: inherit; cursor: pointer;
+  transition: background-color .1s ease;
+}
+.fm-tree-title-btn:hover { background: var(--fm-hover); }
+.fm-tree-title-btn:focus-visible { outline: 2px solid var(--fm-accent); outline-offset: -2px; }
 .fm-col-preview {
   flex: 1 1 0%; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;

@@ -143,13 +143,14 @@ export function TreePanel(props) {
   const hasChanges = gitInfo && gitInfo.hasRepo && gitInfo.files.length > 0
 
   return el('div', { className: 'fm-col-tree' },
-    el('div', {
-      className: 'fm-tree-title',
-      title: '回到工作目录',
-      tabIndex: 0,
-      onClick: goWorkspaceRoot,
-      onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goWorkspaceRoot() } },
-    }, '工作目录'),
+    el('div', { className: 'fm-tree-title' },
+      el('button', {
+        type: 'button',
+        className: 'fm-tree-title-btn',
+        title: '回到工作目录',
+        onClick: goWorkspaceRoot,
+      }, '工作目录'),
+    ),
     error ? el('div', { className: 'fm-error' }, error) : null,
     el('div', { className: 'fm-toolbar' },
       el('button', { className: 'fm-btn', title: '上级目录', disabled: !rootPath, onClick: goParent }, el(IconChevronUpOutline14, { size: 14 }), '上级'),
