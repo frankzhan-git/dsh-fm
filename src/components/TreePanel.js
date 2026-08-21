@@ -10,6 +10,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api } from '../core/api.js'
 import { store } from '../core/store.js'
+import { shortPath } from '../core/format.js'
 import { FM_METHODS } from '../shared/fm-contract.js'
 import { FileRow } from './FileRow.js'
 import { CommitDialog } from './CommitDialog.js'
@@ -46,13 +47,13 @@ export function TreePanel(props) {
     updateListFades()
   }, [tree, rootPath, diffOnly])
 
-  // ---- git 初始化 / 安装并初始化 ----
+  // ---- git 初始化 / 安装并初始化（作用于当前根目录，即视图锚点） ----
   const doGitOp = async (install) => {
     if (gitOpBusy) return
     setGitOpBusy(true)
     if (onError) onError(null)
     try {
-      const r = await api(install ? FM_METHODS.GIT_INSTALL_INIT : FM_METHODS.GIT_INIT, { sessionId: store.sessionId, root: store.root })
+      const r = await api(install ? FM_METHODS.GIT_INSTALL_INIT : FM_METHODS.GIT_INIT, { sessionId: store.sessionId, root: store.root, anchor: rootPath || store.root })
       if (r && r.ok) {
         await refreshGit()
         loadDir(rootPath)
@@ -80,7 +81,7 @@ export function TreePanel(props) {
   const isIgnoredEff = (p) => ws.ignoredSet.has(p) || !!ignoredAncestorOf(p)
 
   const setIndexOp = async (path, checked, recursive) => {
-    const r = await api(FM_METHODS.GIT_INDEX_SET, { path, checked, recursive, sessionId: store.sessionId, root: store.root })
+    const r = await api(FM_METHODS.GIT_INDEX_SET, { path, checked, recursive, sessionId: store.sessionId, root: store.root, anchor: rootPath || store.root })
     if (r && r.ok) {
       await refreshGit()
     } else if (onError) {
@@ -137,6 +138,12 @@ export function TreePanel(props) {
 
   const rootNode = rootPath ? tree[rootPath] : undefined
   const hasChanges = gitInfo && gitInfo.hasRepo && gitInfo.files.length > 0
+  // 规则三：胶囊组判定——当前根自身有仓库 → 该仓库工具条；
+  // 自身无仓库但最近上级仓库索引自身 → 该上级仓库工具条；其余 → 初始化胶囊
+  const gitCtx = gitInfo && gitInfo.context
+  const anchorIndexed = !!gitCtx && gitCtx.anchorIndexed
+  const showGitToolbar = !!gitInfo && !!gitInfo.hasRepo && anchorIndexed
+  const showInitCapsule = !!gitInfo && (!gitInfo.hasRepo || !anchorIndexed)
 
   return el('div', { className: 'fm-col-tree' },
     el('div', { className: 'fm-tree-title' },
@@ -151,7 +158,11 @@ export function TreePanel(props) {
     el('div', { className: 'fm-toolbar' },
       el('button', { className: 'fm-btn', title: '上级目录', disabled: !rootPath, onClick: goParent }, el(IconChevronUpOutline14, { size: 14 }), '上级'),
       el('span', { className: 'fm-spacer' }),
-      gitInfo && gitInfo.hasRepo ? el('div', { className: 'fm-git' },
+      // git 状态未初始化（进入目录/初始加载）：与胶囊同形的友好 loading 占位，防布局跳动
+      gitInfo === null ? el('div', { className: 'fm-git-loading', role: 'status' },
+        el('span', { className: 'fm-git-loading-spin' }),
+        '读取 git 状态…',
+      ) : showGitToolbar ? el('div', { className: 'fm-git' },
         el('span', { className: 'fm-git-stat', title: '未提交变更统计' },
           el('span', { className: 'fm-git-add' }, '+' + gitInfo.totalAdded),
           el('span', { className: 'fm-git-del' }, '-' + gitInfo.totalDeleted),
@@ -171,10 +182,10 @@ export function TreePanel(props) {
           title: '索引管理：勾选=加入索引，取消=排除并同步 .gitignore',
           onClick: () => setIndexMode(!indexMode),
         }, el(IconChecklistOutline14, { size: 14 })),
-      ) : gitInfo && !gitInfo.hasRepo ? el('button', {
+      ) : showInitCapsule ? el('button', {
         className: 'fm-capsule',
         disabled: gitOpBusy,
-        title: gitInfo.gitInstalled === false ? '安装 git 并在工作目录根创建本地仓库' : '在工作目录根创建本地仓库',
+        title: gitInfo.gitInstalled === false ? '安装 git 并在当前目录创建本地仓库' : '在当前目录创建本地仓库',
         onClick: () => doGitOp(gitInfo.gitInstalled === false),
       },
         gitInfo.gitInstalled === false ? el(IconDownloadOutline16, { size: 14 }) : el(IconBranchOutline16, { size: 14 }),
@@ -182,7 +193,8 @@ export function TreePanel(props) {
       ) : null,
     ),
     el('div', { className: 'fm-hint' }, indexMode ? '勾选=加入索引，取消=排除并同步 .gitignore' : '单击展开/预览，双击进入目录，右键更多操作'),
-    el('div', { className: 'fm-path', title: rootPath }, rootPath || ''),
+    // 路径行：精简显示（长路径只保留末尾段，防换行），完整路径在 title
+    el('div', { className: 'fm-path', title: rootPath }, shortPath(rootPath) || ''),
     busy ? el('div', { className: 'fm-busy' }, '…') : null,
     el('div', {
       className: 'fm-list-wrap' + (listTopFade ? ' fm-list-mask-top' : '') + (listBotFade ? ' fm-list-mask-bot' : ''),
@@ -205,6 +217,7 @@ export function TreePanel(props) {
       ),
     ),
     commitOpen ? el(CommitDialog, {
+      anchor: rootPath || store.root,
       onClose: () => setCommitOpen(false),
       onDone: () => { refreshGit(); loadDir(rootPath) },
       onError,

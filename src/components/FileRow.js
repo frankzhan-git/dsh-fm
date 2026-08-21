@@ -2,6 +2,7 @@
 // 自 TreePanel 拆分；ws 为工作区状态（只读），ui 为行交互回调集合。
 import React from 'react'
 import {
+  IconBranchOutline16,
   IconFolderClose16,
   IconFolderOpen16,
   IconTriangleRightFill14,
@@ -81,6 +82,8 @@ export function FileRow({ ws, node, depth, dim, ui }) {
       isDir ? el(node.expanded ? IconFolderOpen16 : IconFolderClose16, { size: 16 }) : fileBadge(node.name),
     ),
     el('span', { className: 'fm-name' }, node.name),
+    // 规则四：目录自带 .git → 无论亮暗/是否被索引，一律显示独立仓库 git 标签
+    isDir && node.hasGit ? el('span', { className: 'fm-git-tag', title: '独立 git 仓库' }, el(IconBranchOutline16, { size: 12 })) : null,
     g && !isDir && (g.added > 0 || g.deleted > 0) ? el('span', { className: 'fm-git-diff' },
       g.added > 0 ? el('span', { className: 'fm-git-add' }, '+' + g.added) : null,
       g.deleted > 0 ? el('span', { className: 'fm-git-del' }, '-' + g.deleted) : null,

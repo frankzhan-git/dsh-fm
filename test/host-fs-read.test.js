@@ -107,3 +107,47 @@ test('fm-read 目录与不存在：错误响应', async () => {
   assert.equal(missing.ok, false)
   assert.ok(missing.error.includes('文件不存在'))
 })
+
+test('fm-list 目录条目带 .git → hasGit 标记（规则四 git 标签数据源）', async () => {
+  const fs = makeFs({
+    resolve: async (p, o) => {
+      const s = String(p)
+      const base = (o && o.cwd) || ''
+      return { displayPath: s.startsWith('/') ? s : (base + '/' + s), targetKey: s }
+    },
+    listDir: async () => [
+      { name: 'repo-a', type: 'directory', target: { displayPath: '/root/repo-a' } },
+      { name: 'plain', type: 'directory', target: { displayPath: '/root/plain' } },
+      { name: 'f.js', type: 'file', target: { displayPath: '/root/f.js' } },
+    ],
+    stat: async (t) => {
+      const p = t && t.displayPath
+      if (p === '/root/repo-a/.git') return { type: 'directory' }
+      if (p === '/root/plain/.git') return null
+      return { type: 'file', size: 1 }
+    },
+  })
+  const r = await handlers(fs)['fm-list']({ path: '.' })
+  assert.equal(r.ok, true)
+  const byName = {}
+  for (const e of r.entries) byName[e.name] = e
+  assert.equal(byName['repo-a'].hasGit, true, '带 .git 的目录应标记 hasGit')
+  assert.equal(byName['plain'].hasGit, false, '无 .git 的目录不应标记')
+  assert.equal(byName['f.js'].hasGit, false, '文件条目不标记')
+})
+
+test('fm-list 条目过多时跳过 .git 探测（性能保护）', async () => {
+  const many = []
+  for (let i = 0; i < 250; i++) many.push({ name: 'd' + i, type: 'directory', target: { displayPath: '/root/d' + i } })
+  let statCalls = 0
+  const fs = makeFs({
+    resolve: async (p, o) => ({ displayPath: p.startsWith('/') ? p : ((o && o.cwd) || '') + '/' + p, targetKey: p }),
+    listDir: async () => many,
+    stat: async () => { statCalls++; return { type: 'directory' } },
+  })
+  const r = await handlers(fs)['fm-list']({ path: '.' })
+  assert.equal(r.ok, true)
+  assert.equal(r.entries.length, 250)
+  assert.ok(r.entries.every((e) => e.hasGit === false))
+  assert.equal(statCalls, 0, '条目超限不应执行 .git 探测')
+})

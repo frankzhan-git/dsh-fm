@@ -30,7 +30,7 @@ export function useFmTree(opts) {
       for (const e of r.entries) {
         const p = norm(e.path)
         childPaths.push(p)
-        additions[p] = { path: p, name: e.name, type: e.type, size: e.size == null ? null : e.size, loaded: false, expanded: false, loading: false, childPaths: [] }
+        additions[p] = { path: p, name: e.name, type: e.type, size: e.size == null ? null : e.size, loaded: false, expanded: false, loading: false, childPaths: [], hasGit: !!(e.hasGit) }
       }
       setTree((t) => {
         const cur = t[dirPath]

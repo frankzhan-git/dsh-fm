@@ -43,6 +43,23 @@ export const TREE_CSS = `
 .fm-capsule:hover { background: var(--fm-hover); color: var(--fm-text); }
 .fm-capsule:disabled { opacity: .55; cursor: default; }
 .fm-capsule:focus-visible { outline: 2px solid var(--fm-accent); outline-offset: -2px; }
+/* git 状态未初始化（进入目录/初始加载）的 loading 占位：与胶囊同形同高，防布局跳动 */
+.fm-git-loading {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--fm-border-strong); border-radius: 999px;
+  padding: 3px 12px; font-size: 12px; line-height: 1.4;
+  color: var(--fm-text-2); white-space: nowrap;
+}
+.fm-git-loading-spin {
+  flex: none; width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid var(--fm-border-strong);
+  border-top-color: var(--fm-accent);
+  animation: fm-spin .8s linear infinite;
+}
+@keyframes fm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .fm-git-loading-spin { animation: none; border-top-color: var(--fm-text-2); }
+}
 /* 索引管理复选框 */
 .fm-index-cb {
   flex: none; width: 14px; height: 14px; margin: 0; padding: 0;
@@ -50,7 +67,7 @@ export const TREE_CSS = `
 }
 .fm-index-cb:disabled { cursor: default; opacity: .45; }
 .fm-hint { flex: none; padding: 0 12px 4px; font-size: 11px; color: var(--fm-text-2); }
-.fm-path { flex: none; padding: 2px 12px 8px; font-size: 12px; color: var(--fm-text-2); word-break: break-all; user-select: text; }
+.fm-path { flex: none; padding: 2px 12px 8px; font-size: 12px; color: var(--fm-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
 .fm-list-wrap {
   position: relative;
   flex: 1 1 0%; min-height: 0;
@@ -106,6 +123,17 @@ export const TREE_CSS = `
 }
 .fm-ficon-other { background: var(--fm-bg-nested); color: var(--fm-text-2); }
 .fm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 独立 git 仓库标签（规则四：目录自带 .git，无论亮暗/是否索引一律显示） */
+.fm-git-tag {
+  flex: none;
+  display: inline-flex; align-items: center;
+  margin-left: 4px; padding: 1px 4px;
+  border: 1px solid var(--fm-border-strong);
+  border-radius: 4px;
+  color: var(--fm-text-2);
+  line-height: 1.2;
+}
+.fm-untracked .fm-git-tag { opacity: .8; }
 .fm-untracked { opacity: .7; }
 .fm-untracked:hover, .fm-untracked:focus-visible { opacity: 1; }
 .fm-untracked .fm-name { color: var(--fm-text-2); }

@@ -1,7 +1,7 @@
 // client core 纯函数测试：format.js（路径/大小/排序）
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { norm, fmtSize, base, extOf, sortKids, relOf } from '../src/core/format.js'
+import { norm, fmtSize, base, extOf, sortKids, relOf, shortPath } from '../src/core/format.js'
 
 test('norm 将反斜杠归一为斜杠', () => {
   assert.equal(norm('a\\b\\c'), 'a/b/c')
@@ -42,4 +42,17 @@ test('relOf 相对工作区根', () => {
   assert.equal(relOf('/root', '/root/a/b.txt'), 'a/b.txt')
   assert.equal(relOf('/root', '/other/x'), '/other/x')
   assert.equal(relOf('', '/x'), '/x')
+})
+
+test('shortPath 长路径只保留末尾完整段（防换行）', () => {
+  assert.equal(shortPath(null), null)
+  assert.equal(shortPath(''), '')
+  assert.equal(shortPath('C:/a/b'), 'C:/a/b')
+  const long = 'C:/Users/webzh/Documents/项目/dsh/dsh-fm-plugin/src/components/TreePanel.js'
+  const s = shortPath(long)
+  assert.ok(s.startsWith('…/'), '长路径应以省略号开头: ' + s)
+  assert.ok(s.endsWith('TreePanel.js'), '应保留末尾完整段: ' + s)
+  assert.ok(s.length < long.length, '应比原路径短')
+  assert.ok(s.length <= 44, '不应超过阈值: ' + s.length)
+  assert.ok(!s.includes('//'), '不应出现残缺路径拼接: ' + s)
 })

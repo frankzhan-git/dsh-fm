@@ -4,16 +4,19 @@ import assert from 'node:assert/strict'
 import { createFmCore } from '../lib/fm-core/index.js'
 import { quote } from '../lib/fm-core/shell.js'
 
-// fake shell：记录全部命令，按内容分支返回可控输出
+// fake shell：记录全部命令与 workdir，按内容分支返回可控输出
 function makeFakeShell() {
   const calls = []
+  const dirs = []
   const routes = []
   const shell = {
     calls,
+    dirs,
     when: (match, out) => routes.push({ match, out }),
     resolve: (spec) => spec,
     run: async (spec) => {
       calls.push(spec.command)
+      dirs.push(spec.workdir)
       const hit = routes.find((r) => r.match.test(spec.command))
       if (!hit) return { exitCode: 0, stdout: { text: '' }, stderr: { text: '' } }
       return typeof hit.out === 'function' ? hit.out() : hit.out
@@ -22,9 +25,29 @@ function makeFakeShell() {
   return shell
 }
 
-function makeServices(shell, workspaceRoot) {
+// fake fs：repoRoots 内的路径视为带 .git 的仓库根（供仓库上下文探测）；
+// 其他路径一律视为不存在（stat → null），保持旧 fake 语义（git 候选二进制探测不命中）
+function makeFs(repoRoots) {
+  const roots = (repoRoots || ['/root']).map((r) => String(r).replace(/\/+$/, ''))
   return {
-    fs: { resolve: async () => ({}), stat: async () => null, listDir: async () => [], readText: async () => '', writeText: async () => {}, readBytes: async () => new Uint8Array(0), contains: () => true },
+    resolve: async (p) => ({ displayPath: String(p), targetKey: String(p) }),
+    stat: async (t) => {
+      const p = String((t && t.displayPath) || t || '')
+      if (!p.endsWith('/.git')) return null
+      const dir = p.slice(0, -5).replace(/\/+$/, '')
+      return roots.indexOf(dir) !== -1 ? { type: 'directory' } : null
+    },
+    listDir: async () => [],
+    readText: async () => '',
+    writeText: async () => ({}),
+    readBytes: async () => new Uint8Array(0),
+    contains: () => true,
+  }
+}
+
+function makeServices(shell, workspaceRoot, repoRoots) {
+  return {
+    fs: makeFs(repoRoots),
     shell,
     sessions: undefined,
     sp: { workspaceRoot: workspaceRoot === undefined ? '/root' : workspaceRoot },
@@ -32,6 +55,14 @@ function makeServices(shell, workspaceRoot) {
 }
 
 const okCmd = () => ({ exitCode: 0, stdout: { text: '' }, stderr: { text: '' } })
+
+// 合并命令（单次 spawn）的 stdout：探测段 + 未暂存 numstat + 已暂存 numstat + porcelain，
+// 段间以 __FM_DIFF_END__ 标记分隔（与 host 解析器一致）
+const merged = (probe, unstaged, cached, porcelain) => ({
+  exitCode: 0,
+  stdout: { text: [probe, unstaged, cached, porcelain].join('\n__FM_DIFF_END__\n') },
+  stderr: { text: '' },
+})
 
 test('quote 在 Windows（当前平台）使用 PowerShell 单引号转义', () => {
   assert.equal(quote("a'b"), "'a''b'")
@@ -62,12 +93,7 @@ test('probeGit 结果缓存：重复调用不重复探测', async () => {
 test('fm-git-status 解析（有 HEAD）：numstat 聚合 + 未跟踪 + 忽略（路径基准=仓库根）', async () => {
   const shell = makeFakeShell()
   shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
-  shell.when(/rev-parse --is-inside-work-tree/, () => ({ exitCode: 0, stdout: { text: 'true\nC:/repo\n' + 'a'.repeat(40) }, stderr: { text: '' } }))
-  shell.when(/diff HEAD --numstat/, () => ({
-    exitCode: 0,
-    stdout: { text: '3\t1\tsrc/a.js\n__FM_DIFF_END__\n?? new.txt\n!! ignored.log\n M src/a.js' },
-    stderr: { text: '' },
-  }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\nC:/repo\n' + 'a'.repeat(40), '3\t1\tsrc/a.js', '', '?? new.txt\n!! ignored.log\n M src/a.js'))
   const handlers = createFmCore(makeServices(shell))
   const r = await handlers['fm-git-status']({})
   assert.equal(r.ok, true)
@@ -82,17 +108,14 @@ test('fm-git-status 解析（有 HEAD）：numstat 聚合 + 未跟踪 + 忽略�
   const unt = r.files.find((f) => f.rel === 'new.txt')
   assert.deepEqual({ added: unt.added, untracked: unt.untracked }, { added: null, untracked: true })
   assert.deepEqual(r.ignored, ['C:/repo/ignored.log'])
+  // 锚点回退会话根（/root 为仓库根）：被索引 → 工具条模式
+  assert.deepEqual(r.context, { root: '/root', hasOwnRepo: true, anchorIndexed: true })
 })
 
 test('fm-git-status 解析（无 HEAD）：diff + cached 双段聚合', async () => {
   const shell = makeFakeShell()
   shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
-  shell.when(/rev-parse --is-inside-work-tree/, () => ({ exitCode: 0, stdout: { text: 'true\nC:/repo' }, stderr: { text: '' } }))
-  shell.when(/diff --cached --numstat/, () => ({
-    exitCode: 0,
-    stdout: { text: '1\t0\tb.js\n__FM_DIFF_END__\n2\t2\tc.js\n__FM_DIFF_END__\n' },
-    stderr: { text: '' },
-  }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\nC:/repo', '1\t0\tb.js', '2\t2\tc.js', ''))
   const handlers = createFmCore(makeServices(shell))
   const r = await handlers['fm-git-status']({})
   assert.equal(r.totalAdded, 3)
@@ -176,4 +199,133 @@ test('fm-list 拒绝无法确定工作目录', async () => {
   const r = await handlers['fm-list']({})
   assert.equal(r.ok, false)
   assert.ok(r.error.includes('无法确定工作目录'))
+})
+
+// ---------- 仓库上下文：锚点跟随当前根目录 ----------
+
+test('fm-git-status：锚点自带 .git → 以自身仓库为基准（进入子仓库场景）', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\nC:/ws/plugin\n' + 'a'.repeat(40), '2\t0\tsrc/x.js', '', ''))
+  const handlers = createFmCore(makeServices(shell, '/ws', ['C:/ws/plugin']))
+  const r = await handlers['fm-git-status']({ anchor: 'C:/ws/plugin' })
+  assert.equal(r.ok, true)
+  assert.equal(r.hasRepo, true)
+  // git 合并命令（单次 spawn）应以锚点自身仓库根为 cwd；dirs[0] 为版本探测
+  assert.equal(shell.dirs[1], 'C:/ws/plugin', 'status 应在锚点仓库根执行')
+  assert.deepEqual(r.context, { root: 'C:/ws/plugin', hasOwnRepo: true, anchorIndexed: true })
+  const f = r.files.find((x) => x.rel === 'src/x.js')
+  assert.equal(f.path, 'C:/ws/plugin/src/x.js')
+})
+
+test('fm-git-status：锚点在仓库内非根 → 以最近上级仓库为基准（dsh/docs 场景）', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\n/ws\n' + 'a'.repeat(40), '1\t1\tdocs/a.md', '', ''))
+  const handlers = createFmCore(makeServices(shell, '/ws', ['/ws']))
+  const r = await handlers['fm-git-status']({ anchor: '/ws/docs' })
+  assert.equal(r.ok, true)
+  assert.equal(shell.dirs[1], '/ws', '应以上级仓库根为 cwd')
+  assert.deepEqual(r.context, { root: '/ws', hasOwnRepo: false, anchorIndexed: true })
+  assert.equal(r.files[0].path, '/ws/docs/a.md')
+})
+
+test('fm-git-status：锚点无任何仓库 → hasRepo:false + context:null（初始化胶囊场景）', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  const handlers = createFmCore(makeServices(shell, '/ws', []))
+  const r = await handlers['fm-git-status']({ anchor: '/plain' })
+  assert.equal(r.ok, true)
+  assert.equal(r.hasRepo, false)
+  assert.equal(r.gitInstalled, true)
+  assert.equal(r.context, null)
+})
+
+test('fm-git-status：锚点被仓库忽略 → anchorIndexed:false（dsh-fm-release 场景）', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\n/ws\n' + 'a'.repeat(40), '', '', '!! release'))
+  const handlers = createFmCore(makeServices(shell, '/ws', ['/ws']))
+  const r = await handlers['fm-git-status']({ anchor: '/ws/release' })
+  assert.equal(r.ok, true)
+  assert.equal(r.context.anchorIndexed, false)
+  assert.deepEqual(r.ignored, ['/ws/release'])
+})
+
+test('fm-git-status：锚点祖先被忽略 → anchorIndexed:false', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\n/ws\n' + 'a'.repeat(40), '', '', '!! release'))
+  const handlers = createFmCore(makeServices(shell, '/ws', ['/ws']))
+  const r = await handlers['fm-git-status']({ anchor: '/ws/release/sub' })
+  assert.equal(r.ok, true)
+  assert.equal(r.context.anchorIndexed, false, '锚点祖先被忽略 → 未索引')
+})
+
+test('fm-git-status：锚点被索引但仓库内有其他忽略项 → anchorIndexed:true', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => merged('true\n/ws\n' + 'a'.repeat(40), '', '', '!! release'))
+  const handlers = createFmCore(makeServices(shell, '/ws', ['/ws']))
+  const r = await handlers['fm-git-status']({ anchor: '/ws/docs' })
+  assert.equal(r.ok, true)
+  assert.equal(r.context.anchorIndexed, true)
+})
+
+test('fm-git-status 结果缓存：同仓库短时间重复请求不重复 spawn', async () => {
+  const shell = makeFakeShell()
+  let statusRuns = 0
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --is-inside-work-tree/, () => { statusRuns++; return merged('true\n/ws\n' + 'a'.repeat(40), '1\t0\ta.js', '', '') })
+  const handlers = createFmCore(makeServices(shell, '/ws', ['/ws']))
+  const r1 = await handlers['fm-git-status']({ anchor: '/ws' })
+  const r2 = await handlers['fm-git-status']({ anchor: '/ws/docs' })
+  assert.equal(r1.ok, true)
+  assert.equal(r2.ok, true)
+  assert.equal(statusRuns, 1, '同仓库 1.5s 内重复请求应命中缓存（不重复 spawn）')
+  assert.equal(r2.context.anchorIndexed, true)
+})
+
+test('fm-git-diff：嵌套仓库内文件 → 以文件所属仓库为 cwd 与路径基准', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/rev-parse --show-toplevel/, () => ({ exitCode: 0, stdout: { text: 'C:/ws/plugin\n' + 'a'.repeat(40) }, stderr: { text: '' } }))
+  shell.when(/diff HEAD -- /, () => ({ exitCode: 0, stdout: { text: 'diff --git a/src/a.js b/src/a.js\n@@ -1 +1 @@\n-a\n+b' }, stderr: { text: '' } }))
+  const handlers = createFmCore(makeServices(shell, '/ws', ['C:/ws/plugin']))
+  const r = await handlers['fm-git-diff']({ path: 'C:/ws/plugin/src/a.js' })
+  assert.equal(r.ok, true)
+  assert.equal(shell.dirs[1], 'C:/ws/plugin', '嵌套仓库文件 diff 应以文件所属仓库为 cwd')
+  const diffCmd = shell.calls.find((c) => c.includes('diff HEAD --'))
+  assert.ok(diffCmd.includes("'src/a.js'"), '路径应相对文件所属仓库根: ' + diffCmd)
+})
+
+test('fm-git-commit：提交锚点的上下文仓库（非会话根）', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  shell.when(/add -A/, okCmd)
+  shell.when(/commit -m /, okCmd)
+  const handlers = createFmCore(makeServices(shell, '/ws', ['/ws/plugin']))
+  const r = await handlers['fm-git-commit']({ msg: 'feat: x', anchor: '/ws/plugin' })
+  assert.equal(r.ok, true)
+  assert.equal(shell.dirs[1], '/ws/plugin', 'add 应在上下文仓库根执行')
+  assert.equal(shell.dirs[2], '/ws/plugin', 'commit 应在上下文仓库根执行')
+})
+
+test('fm-git-commit：锚点无仓库 → 拒绝提交', async () => {
+  const shell = makeFakeShell()
+  const handlers = createFmCore(makeServices(shell, '/ws', []))
+  const r = await handlers['fm-git-commit']({ msg: 'm', anchor: '/plain' })
+  assert.equal(r.ok, false)
+  assert.ok(r.error.includes('不在任何 git 仓库'))
+})
+
+test('fm-git-init：在锚点目录初始化（非会话根）', async () => {
+  const shell = makeFakeShell()
+  shell.when(/git --version$/, () => ({ exitCode: 0, stdout: { text: 'git version 2.47.0' }, stderr: { text: '' } }))
+  const handlers = createFmCore(makeServices(shell, '/ws'))
+  const r = await handlers['fm-git-init']({ anchor: '/tmp/x' })
+  assert.equal(r.ok, true)
+  const initIdx = shell.calls.indexOf('git init')
+  assert.ok(initIdx !== -1, '应执行 git init')
+  assert.equal(shell.dirs[initIdx], '/tmp/x', 'git init 应在锚点目录执行')
 })

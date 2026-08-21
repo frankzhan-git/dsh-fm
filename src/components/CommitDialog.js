@@ -1,4 +1,5 @@
 // 提交变更浮窗：自 TreePanel 拆分，内聚提交信息状态与提交动作
+// anchor = 当前根目录（视图锚点）：提交作用于该锚点的上下文仓库
 import React from 'react'
 import { api } from '../core/api.js'
 import { store } from '../core/store.js'
@@ -6,7 +7,7 @@ import { FM_METHODS } from '../shared/fm-contract.js'
 
 const el = React.createElement
 
-export function CommitDialog({ onClose, onDone, onError }) {
+export function CommitDialog({ anchor, onClose, onDone, onError }) {
   const [msg, setMsg] = React.useState('')
   const [busy, setBusy] = React.useState(false)
 
@@ -16,7 +17,7 @@ export function CommitDialog({ onClose, onDone, onError }) {
     setBusy(true)
     if (onError) onError(null)
     try {
-      const r = await api(FM_METHODS.GIT_COMMIT, { msg: m, sessionId: store.sessionId, root: store.root })
+      const r = await api(FM_METHODS.GIT_COMMIT, { msg: m, sessionId: store.sessionId, root: store.root, anchor: anchor || store.root })
       if (r && r.ok) {
         setMsg('')
         onClose()

@@ -14,6 +14,9 @@ export function useFmGit(opts) {
 
   const gitBusy = React.useRef(false)
   const gitSigRef = React.useRef('')
+  // 当前锚点（视图根）引用：丢弃过期锚点的响应，避免导航竞态覆盖新数据
+  const rootPathRef = React.useRef(rootPath)
+  rootPathRef.current = rootPath
 
   // 仅已跟踪的修改/删除文件参与 git 徽标与筛选（未跟踪/忽略内容不关心其新增状态）
   const gitMap = {}
@@ -83,22 +86,28 @@ export function useFmGit(opts) {
   }, [diffOnly, gitInfo, tree, rootPath])
 
   const refreshGit = async () => {
+    // 锚点 = 当前根目录（视图锚点）；git 上下文判定以锚点为准（自身仓库或最近上级仓库）
+    const anchor = rootPathRef.current || store.root
+    const stale = () => { const cur = rootPathRef.current; return !!cur && cur !== anchor }
     try {
-      const r = await api(FM_METHODS.GIT_STATUS, { sessionId: store.sessionId, root: store.root })
+      const r = await api(FM_METHODS.GIT_STATUS, { sessionId: store.sessionId, root: store.root, anchor })
+      if (stale()) return // 导航已发生：丢弃旧锚点的响应
       if (r && r.ok) {
+        const ctx = r.context || null
         // 数据签名一致时跳过 setState，避免每轮轮询都触发整组件重渲染
-        const sig = JSON.stringify({ hr: !!r.hasRepo, gi: !!r.gitInstalled, f: r.files || [], ig: r.ignored || [], ta: r.totalAdded || 0, td: r.totalDeleted || 0 })
+        const sig = JSON.stringify({ hr: !!r.hasRepo, gi: !!r.gitInstalled, f: r.files || [], ig: r.ignored || [], ta: r.totalAdded || 0, td: r.totalDeleted || 0, c: ctx ? (ctx.root + '|' + !!ctx.hasOwnRepo + '|' + !!ctx.anchorIndexed) : '' })
         if (gitSigRef.current !== sig) {
           gitSigRef.current = sig
-          setGitInfo({ hasRepo: !!r.hasRepo, gitInstalled: !!r.gitInstalled, files: r.files || [], ignored: r.ignored || [], totalAdded: r.totalAdded || 0, totalDeleted: r.totalDeleted || 0 })
+          setGitInfo({ hasRepo: !!r.hasRepo, gitInstalled: !!r.gitInstalled, files: r.files || [], ignored: r.ignored || [], totalAdded: r.totalAdded || 0, totalDeleted: r.totalDeleted || 0, context: ctx })
         }
       } else {
         if (gitSigRef.current !== 'none') {
           gitSigRef.current = 'none'
-          setGitInfo({ hasRepo: false, gitInstalled: false, files: [], ignored: [], totalAdded: 0, totalDeleted: 0 })
+          setGitInfo({ hasRepo: false, gitInstalled: false, files: [], ignored: [], totalAdded: 0, totalDeleted: 0, context: null })
         }
       }
     } catch (e) {
+      if (stale()) return
       if (gitSigRef.current !== 'err') {
         gitSigRef.current = 'err'
         setGitInfo(null)
@@ -135,9 +144,13 @@ export function useFmGit(opts) {
     })()
   }, [diffOnly, gitInfo, rootPath])
 
-  // git 状态轮询（与目录轮询解耦）
+  // git 状态轮询（与目录轮询解耦）；锚点（rootPath）变化时：
+  // 立即清空旧锚点数据（避免上一仓库的徽标/统计在刷新完成前残留）+ 立即刷新并重启轮询，
+  // 保证进入子仓库后胶囊/徽标/提交/筛选随视图切换为该仓库的数据
   React.useEffect(() => {
     if (!open) return
+    setGitInfo(null)
+    refreshGit()
     const gitTimer = setInterval(async () => {
       if (gitBusy.current) return
       gitBusy.current = true
@@ -148,7 +161,7 @@ export function useFmGit(opts) {
       }
     }, POLL_MS)
     return () => { clearInterval(gitTimer) }
-  }, [open])
+  }, [open, rootPath])
 
   return {
     gitInfo, diffOnly, setDiffOnly,

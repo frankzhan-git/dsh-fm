@@ -35,3 +35,14 @@ export const relOf = (root, p) => {
   if (r && p.indexOf(r + '/') === 0) return p.slice(r.length + 1)
   return p
 }
+
+// 精简路径显示：超过阈值只保留末尾的完整段（防长路径换行），
+// 完整路径由调用方放入 title；null/空/短路径原样返回
+export const shortPath = (p, max = 44) => {
+  if (!p || p.length <= max) return p
+  let tail = p.slice(-(max - 2))
+  const i = tail.indexOf('/')
+  if (i > 0) tail = tail.slice(i + 1)
+  else if (i === 0) tail = tail.slice(1)
+  return '…/' + tail
+}

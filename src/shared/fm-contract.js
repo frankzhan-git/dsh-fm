@@ -15,18 +15,20 @@ export const FM_METHODS = {
 }
 
 // 每个方法允许的入参键（供校验与文档参考）。
-// 约定：root 可省略（回退到会话 cwd / sandbox workspaceRoot）；path 为工作区内路径。
+// 约定：root 可省略（回退到会话 cwd / sandbox workspaceRoot）；path 为工作区内路径；
+// anchor 为文件管理器当前根目录（视图锚点），git 类方法的仓库上下文判定以它为准，
+// 缺省时回退 root（旧客户端兼容）。
 export const FM_ARGS = {
   [FM_METHODS.ROOT]: ['root', 'sessionId'],
   [FM_METHODS.LIST]: ['path', 'root', 'sessionId'],
   [FM_METHODS.READ]: ['path', 'name', 'root', 'sessionId'],
   [FM_METHODS.REMOVE]: ['path', 'root', 'sessionId'],
-  [FM_METHODS.GIT_STATUS]: ['root', 'sessionId'],
+  [FM_METHODS.GIT_STATUS]: ['root', 'sessionId', 'anchor'],
   [FM_METHODS.GIT_DIFF]: ['rel', 'root', 'sessionId'],
-  [FM_METHODS.GIT_COMMIT]: ['msg', 'root', 'sessionId'],
-  [FM_METHODS.GIT_INIT]: ['root', 'sessionId'],
-  [FM_METHODS.GIT_INSTALL_INIT]: ['root', 'sessionId'],
-  [FM_METHODS.GIT_INDEX_SET]: ['path', 'checked', 'recursive', 'probe', 'root', 'sessionId'],
+  [FM_METHODS.GIT_COMMIT]: ['msg', 'root', 'sessionId', 'anchor'],
+  [FM_METHODS.GIT_INIT]: ['root', 'sessionId', 'anchor'],
+  [FM_METHODS.GIT_INSTALL_INIT]: ['root', 'sessionId', 'anchor'],
+  [FM_METHODS.GIT_INDEX_SET]: ['path', 'checked', 'recursive', 'probe', 'root', 'sessionId', 'anchor'],
 }
 
 // webServer 路由路径（client fetch 与 host 注册共用）
