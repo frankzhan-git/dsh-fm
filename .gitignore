@@ -1,3 +1,7 @@
 node_modules/
 *.zip
 *.log
+
+# 构建产物（npm run build 生成，发布包由 sync-release 提供）
+lib/client.js
+.git-credentials

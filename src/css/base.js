@@ -131,6 +131,6 @@ export const BASE_CSS = `
 }
 @media (prefers-reduced-motion: reduce) {
   .fm-modal-panel { animation: none; }
-  .fm-chev, .fm-btn, .fm-row, .fm-tab, .fm-tab-close, .fm-modal-close, .fm-menu-item, .fm-git-btn, .fm-diff-btn, .fm-md-btn, .fm-sidebar-btn { transition: none; }
+  .fm-chev, .fm-btn, .fm-row, .fm-tab, .fm-tab-close, .fm-modal-close, .fm-menu-item, .fm-git-btn, .fm-capsule, .fm-diff-btn, .fm-md-btn, .fm-sidebar-btn { transition: none; }
 }
 `

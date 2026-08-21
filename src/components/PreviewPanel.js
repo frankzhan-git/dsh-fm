@@ -6,8 +6,8 @@ import { TabBar } from './TabBar.js'
 import { mdRender } from './Markdown.js'
 import { parseDiff, allAddRows } from '../core/diff.js'
 import { langFor, tokenize } from '../core/highlight.js'
-import { extOf } from '../core/format.js'
-import { HL_LIMIT } from '../core/constants.js'
+import { extOf, fmtSize } from '../core/format.js'
+import { HL_LIMIT, DIFF_MAX_ROWS } from '../core/constants.js'
 
 const el = React.createElement
 
@@ -22,23 +22,36 @@ export function PreviewPanel(props) {
     if (pv0.loading) return el('div', { className: 'fm-loading' }, '加载中…')
     if (pv0.kind === 'text') {
       return el('div', { className: 'fm-text-body' },
-        pv0.truncated ? el('div', { className: 'fm-warn' }, '文件较大，仅显示前 512 KB') : null,
+        pv0.truncated ? el('div', { className: 'fm-warn' }, '文件较大，仅显示前 ' + fmtSize(pv0.limit) + '（共 ' + fmtSize(pv0.size) + '）') : null,
         el('div', { className: 'fm-code-wrap' },
           pv0.diff
             ? (pv0.diffUntracked
-                ? el('div', { className: 'fm-diff' },
-                    allAddRows(pv0.diffUntrackedContent).length === 0
-                      ? el('div', { className: 'fm-diff-empty' }, '（无内容）')
-                      : allAddRows(pv0.diffUntrackedContent).map((r, i) => el('div', { className: 'fm-diff-row fm-diff-add', key: i },
-                          el('span', { className: 'fm-diff-gutter' }, '+'),
+                ? (() => {
+                    const rows = allAddRows(pv0.diffUntrackedContent)
+                    if (rows.length === 0) return el('div', { className: 'fm-diff-empty' }, '（无内容）')
+                    const limited = rows.length > DIFF_MAX_ROWS
+                    const shown = limited ? rows.slice(0, DIFF_MAX_ROWS) : rows
+                    return el('div', { className: 'fm-diff' },
+                      limited ? el('div', { className: 'fm-warn' }, 'diff 过大，仅显示前 ' + DIFF_MAX_ROWS + ' 行（共 ' + rows.length + ' 行）') : null,
+                      shown.map((r, i) => el('div', { className: 'fm-diff-row fm-diff-add', key: i },
+                        el('span', { className: 'fm-diff-gutter' }, '+'),
+                        el('span', { className: 'fm-diff-text' }, r.s || ' '),
+                      )),
+                    )
+                  })()
+                : pv0.diffData != null
+                  ? (() => {
+                      const rows = parseDiff(pv0.diffData)
+                      const limited = rows.length > DIFF_MAX_ROWS
+                      const shown = limited ? rows.slice(0, DIFF_MAX_ROWS) : rows
+                      return el('div', { className: 'fm-diff' },
+                        limited ? el('div', { className: 'fm-warn' }, 'diff 过大，仅显示前 ' + DIFF_MAX_ROWS + ' 行（共 ' + rows.length + ' 行）') : null,
+                        shown.map((r, i) => el('div', { className: 'fm-diff-row fm-diff-' + r.t, key: i },
+                          el('span', { className: 'fm-diff-gutter' }, r.t === 'add' ? '+' : r.t === 'del' ? '-' : r.t === 'hunk' ? '@' : ' '),
                           el('span', { className: 'fm-diff-text' }, r.s || ' '),
                         )),
-                  )
-                : pv0.diffData != null
-                  ? el('div', { className: 'fm-diff' }, parseDiff(pv0.diffData).map((r, i) => el('div', { className: 'fm-diff-row fm-diff-' + r.t, key: i },
-                      el('span', { className: 'fm-diff-gutter' }, r.t === 'add' ? '+' : r.t === 'del' ? '-' : r.t === 'hunk' ? '@' : ' '),
-                      el('span', { className: 'fm-diff-text' }, r.s || ' '),
-                    )))
+                      )
+                    })()
                   : el('div', { className: 'fm-loading' }, '加载 diff 中…')
               )
             : pv0.md

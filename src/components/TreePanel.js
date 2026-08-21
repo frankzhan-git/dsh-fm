@@ -1,38 +1,40 @@
-// 左侧文件树列：标题（回工作区根）、错误条、工具栏（上级/刷新/git 统计/提交/筛选）、
-// 路径、滚动渐隐列表（行渲染：展开/双击导航/右键菜单/git 徽标/未跟踪暗色）、提交浮窗
+// 左侧文件树列：标题（回工作区根）、错误条、工具栏（上级/git 统计/提交/筛选/索引管理）、
+// 路径、滚动渐隐列表（行渲染委托 FileRow）、提交/索引浮窗（CommitDialog / IndexAskDialog）
 import React from 'react'
 import {
   IconBranchOutline16,
+  IconChecklistOutline14,
   IconChevronUpOutline14,
-  IconFolderClose16,
-  IconFolderOpen16,
-  IconRefreshOutline14,
+  IconDownloadOutline16,
   IconSearchOutline16,
-  IconTriangleRightFill14,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api } from '../core/api.js'
 import { store } from '../core/store.js'
-import { DBL_CLICK_MS } from '../core/constants.js'
-import { fmtSize, sortKids } from '../core/format.js'
-import { fileBadge } from './FileBadge.js'
+import { FM_METHODS } from '../shared/fm-contract.js'
+import { FileRow } from './FileRow.js'
+import { CommitDialog } from './CommitDialog.js'
+import { IndexAskDialog } from './IndexAskDialog.js'
 
 const el = React.createElement
 
 export function TreePanel(props) {
   const { ws, error, busy, onOpenFile, onRowMenu, onError } = props
   const {
-    rootPath, tree, gitInfo, diffOnly, gitMap, changedSet, dirGit,
-    untrackedSet, ignoredSet, visible,
-    loadDir, toggleDir, navigate, goParent, goWorkspaceRoot, refreshGit,
+    rootPath, tree, gitInfo, diffOnly,
+    loadDir, navigate, goParent, goWorkspaceRoot, refreshGit,
   } = ws
 
   const [commitOpen, setCommitOpen] = React.useState(false)
-  const [commitMsg, setCommitMsg] = React.useState('')
-  const [commitBusy, setCommitBusy] = React.useState(false)
   const [listTopFade, setListTopFade] = React.useState(false)
   const [listBotFade, setListBotFade] = React.useState(false)
   const listRef = React.useRef(null)
   const lastDirClick = React.useRef(null)
+  // 索引管理：indexMode 开/关、操作忙态、目录批量弹窗（{ node, checked }）
+  const [indexMode, setIndexMode] = React.useState(false)
+  const [indexBusy, setIndexBusy] = React.useState(false)
+  const [indexAsk, setIndexAsk] = React.useState(null)
+  // git 初始化/安装操作忙态
+  const [gitOpBusy, setGitOpBusy] = React.useState(false)
 
   const updateListFades = () => {
     const el0 = listRef.current
@@ -44,99 +46,93 @@ export function TreePanel(props) {
     updateListFades()
   }, [tree, rootPath, diffOnly])
 
-  const doCommit = async () => {
-    const msg = commitMsg.trim()
-    if (!msg || commitBusy) return
-    setCommitBusy(true)
+  // ---- git 初始化 / 安装并初始化 ----
+  const doGitOp = async (install) => {
+    if (gitOpBusy) return
+    setGitOpBusy(true)
     if (onError) onError(null)
     try {
-      const r = await api('fm-git-commit', { msg, sessionId: store.sessionId, root: store.root })
+      const r = await api(install ? FM_METHODS.GIT_INSTALL_INIT : FM_METHODS.GIT_INIT, { sessionId: store.sessionId, root: store.root })
       if (r && r.ok) {
-        setCommitOpen(false)
-        setCommitMsg('')
         await refreshGit()
         loadDir(rootPath)
       } else if (onError) {
-        onError((r && r.error) || '提交失败')
+        onError((r && r.error) || (install ? '安装 git 失败' : '初始化仓库失败'))
       }
     } catch (e) {
       if (onError) onError(e && e.message ? e.message : String(e))
     } finally {
-      setCommitBusy(false)
+      setGitOpBusy(false)
     }
   }
 
-  const renderNode = (node, depth, parentDim) => {
-    const isDir = node.type === 'directory'
-    const dim = parentDim || untrackedSet.has(node.path) || ignoredSet.has(node.path)
-    if (diffOnly) {
-      if (isDir && !visible.has(node.path)) return null
-      if (!isDir && !changedSet.has(node.path)) return null
+  // ---- 索引管理 ----
+  // 是否被 .gitignore 排除（自身或任一祖先目录被忽略，即「不在索引」）
+  const ignoredAncestorOf = (p) => {
+    let i = p.lastIndexOf('/')
+    while (i > 0) {
+      const a = p.slice(0, i)
+      if (ws.ignoredSet.has(a)) return a
+      i = a.lastIndexOf('/')
     }
-    const kids = sortKids(isDir ? node.childPaths.map((cp) => tree[cp]).filter(Boolean) : [])
-    const rowProps = {
-      className: 'fm-row' + (dim ? ' fm-untracked' : ''),
-      key: node.path,
-      style: { paddingLeft: 8 + depth * 20 },
-      tabIndex: 0,
-      onKeyDown: (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          if (isDir) {
-            toggleDir(node.path)
-          } else {
-            onOpenFile(node)
-          }
-        }
-      },
-      onContextMenu: (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onRowMenu(node, e)
-      },
+    return null
+  }
+  const isIgnoredEff = (p) => ws.ignoredSet.has(p) || !!ignoredAncestorOf(p)
+
+  const setIndexOp = async (path, checked, recursive) => {
+    const r = await api(FM_METHODS.GIT_INDEX_SET, { path, checked, recursive, sessionId: store.sessionId, root: store.root })
+    if (r && r.ok) {
+      await refreshGit()
+    } else if (onError) {
+      onError((r && r.error) || '索引操作失败')
     }
-    if (isDir) {
-      // 手动双击检测：两次单击间隔 ≤ DBL_CLICK_MS 视为双击进入目录。
-      // 不用浏览器原生 dblclick（跟随系统设置约 500ms，慢速连续单击会被误判），
-      // 缩短到 250ms：故意连续展开/收起两次不会触发，快速双击仍然有效。
-      rowProps.onClick = () => {
-        const now = Date.now()
-        const last = lastDirClick.current
-        if (last && last.path === node.path && now - last.time <= DBL_CLICK_MS) {
-          lastDirClick.current = null
-          if (node.path !== rootPath) navigate(node.path)
-          return
-        }
-        lastDirClick.current = { path: node.path, time: now }
-        toggleDir(node.path)
+  }
+
+  const onIndexToggle = async (node, checked) => {
+    if (indexBusy) return
+    setIndexBusy(true)
+    if (onError) onError(null)
+    try {
+      if (node.type !== 'directory') {
+        await setIndexOp(node.path, checked, false)
+        return
       }
-    } else {
-      rowProps.onClick = () => onOpenFile(node)
+      // 目录：先探测是否非空，非空则弹窗询问是否批量设置内部所有文件
+      const r = await api(FM_METHODS.GIT_INDEX_SET, { path: node.path, checked, probe: true, sessionId: store.sessionId, root: store.root })
+      if (!r || !r.ok) {
+        if (onError) onError((r && r.error) || '操作失败')
+        return
+      }
+      if (r.dirNonEmpty) setIndexAsk({ node, checked })
+      else await setIndexOp(node.path, checked, false)
+    } catch (e) {
+      if (onError) onError(e && e.message ? e.message : String(e))
+    } finally {
+      setIndexBusy(false)
     }
-    const g = gitMap[node.path]
-    const dg = isDir ? dirGit[node.path] : null
-    const row = el('div', rowProps,
-      el('span', { className: 'fm-icon' },
-        isDir ? el('span', { className: 'fm-chev' + (node.expanded ? ' fm-chev-open' : '') }, el(IconTriangleRightFill14, { size: 12 })) : el('span', { className: 'fm-chev-gap' }),
-        isDir ? el(node.expanded ? IconFolderOpen16 : IconFolderClose16, { size: 16 }) : fileBadge(node.name),
-      ),
-      el('span', { className: 'fm-name' }, node.name),
-      g && !isDir && (g.added > 0 || g.deleted > 0) ? el('span', { className: 'fm-git-diff' },
-        g.added > 0 ? el('span', { className: 'fm-git-add' }, '+' + g.added) : null,
-        g.deleted > 0 ? el('span', { className: 'fm-git-del' }, '-' + g.deleted) : null,
-      ) : null,
-      dg ? el('span', { className: 'fm-git-diff', title: dg.count + ' files changed' + (dg.added > 0 ? ', +' + dg.added : '') + (dg.deleted > 0 ? ', -' + dg.deleted : '') },
-        el('span', { className: 'fm-git-count' }, dg.count + ' files'),
-        dg.added > 0 ? el('span', { className: 'fm-git-add' }, '+' + dg.added) : null,
-        dg.deleted > 0 ? el('span', { className: 'fm-git-del' }, '-' + dg.deleted) : null,
-      ) : null,
-      el('span', { className: 'fm-size' }, fmtSize(node.size)),
-    )
-    if (!isDir) return row
-    return el(React.Fragment, { key: node.path },
-      row,
-      node.expanded ? kids.map((k) => renderNode(k, depth + 1, dim)) : null,
-    )
+  }
+
+  const confirmIndex = (recursive) => {
+    const ask = indexAsk
+    setIndexAsk(null)
+    if (!ask || indexBusy) return
+    setIndexBusy(true)
+    ;(async () => {
+      try {
+        await setIndexOp(ask.node.path, ask.checked, recursive)
+      } catch (e) {
+        if (onError) onError(e && e.message ? e.message : String(e))
+      } finally {
+        setIndexBusy(false)
+      }
+    })()
+  }
+
+  const rowUi = {
+    indexMode, indexBusy,
+    onIndexToggle, onRowMenu, onOpenFile,
+    lastDirClickRef: lastDirClick,
+    ignoredAncestorOf, isIgnoredEff,
   }
 
   const rootNode = rootPath ? tree[rootPath] : undefined
@@ -154,7 +150,6 @@ export function TreePanel(props) {
     error ? el('div', { className: 'fm-error' }, error) : null,
     el('div', { className: 'fm-toolbar' },
       el('button', { className: 'fm-btn', title: '上级目录', disabled: !rootPath, onClick: goParent }, el(IconChevronUpOutline14, { size: 14 }), '上级'),
-      el('button', { className: 'fm-btn', title: '刷新', disabled: !rootPath, onClick: () => loadDir(rootPath) }, el(IconRefreshOutline14, { size: 14 }), '刷新'),
       el('span', { className: 'fm-spacer' }),
       gitInfo && gitInfo.hasRepo ? el('div', { className: 'fm-git' },
         el('span', { className: 'fm-git-stat', title: '未提交变更统计' },
@@ -171,9 +166,22 @@ export function TreePanel(props) {
           title: diffOnly ? '显示全部文件' : '仅显示变更文件',
           onClick: () => ws.setDiffOnly(!diffOnly),
         }, el(IconSearchOutline16, { size: 14 })),
+        el('button', {
+          className: 'fm-git-btn' + (indexMode ? ' fm-git-btn-on' : ''),
+          title: '索引管理：勾选=加入索引，取消=排除并同步 .gitignore',
+          onClick: () => setIndexMode(!indexMode),
+        }, el(IconChecklistOutline14, { size: 14 })),
+      ) : gitInfo && !gitInfo.hasRepo ? el('button', {
+        className: 'fm-capsule',
+        disabled: gitOpBusy,
+        title: gitInfo.gitInstalled === false ? '安装 git 并在工作目录根创建本地仓库' : '在工作目录根创建本地仓库',
+        onClick: () => doGitOp(gitInfo.gitInstalled === false),
+      },
+        gitInfo.gitInstalled === false ? el(IconDownloadOutline16, { size: 14 }) : el(IconBranchOutline16, { size: 14 }),
+        gitOpBusy ? (gitInfo.gitInstalled === false ? '安装中…' : '初始化中…') : (gitInfo.gitInstalled === false ? '安装并初始化仓库' : '初始化仓库'),
       ) : null,
     ),
-    el('div', { className: 'fm-hint' }, '单击展开/预览，双击进入目录，右键更多操作'),
+    el('div', { className: 'fm-hint' }, indexMode ? '勾选=加入索引，取消=排除并同步 .gitignore' : '单击展开/预览，双击进入目录，右键更多操作'),
     el('div', { className: 'fm-path', title: rootPath }, rootPath || ''),
     busy ? el('div', { className: 'fm-busy' }, '…') : null,
     el('div', {
@@ -190,31 +198,22 @@ export function TreePanel(props) {
           : diffOnly && !rootNode.childPaths.some((cp) => {
               const c = tree[cp]
               if (!c) return false
-              return c.type === 'directory' ? !!visible.has(cp) : changedSet.has(cp)
+              return c.type === 'directory' ? !!ws.visible.has(cp) : ws.changedSet.has(cp)
             }) ? el('div', { className: 'fm-empty' }, '无变更文件')
           : rootNode.childPaths.length === 0 ? el('div', { className: 'fm-empty' }, '此目录为空')
-          : renderNode(rootNode, 0),
+          : el(FileRow, { ws, node: rootNode, depth: 0, dim: false, ui: rowUi }),
       ),
     ),
-    commitOpen ? el(React.Fragment, null,
-      el('div', { className: 'fm-menu-backdrop', onClick: () => setCommitOpen(false) }),
-      el('div', { className: 'fm-menu fm-pop2', onClick: (e) => e.stopPropagation() },
-        el('div', { className: 'fm-menu-title' }, '提交变更'),
-        el('input', {
-          className: 'fm-commit-input',
-          value: commitMsg,
-          placeholder: '提交信息',
-          onChange: (e) => setCommitMsg(e.target.value),
-          onKeyDown: (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); doCommit() }
-            if (e.key === 'Escape') { e.stopPropagation(); setCommitOpen(false) }
-          },
-        }),
-        el('div', { className: 'fm-menu-actions' },
-          el('button', { className: 'fm-btn fm-btn-danger', disabled: commitBusy || !commitMsg.trim(), onClick: doCommit }, '提交'),
-          el('button', { className: 'fm-btn', onClick: () => setCommitOpen(false) }, '取消'),
-        ),
-      ),
-    ) : null,
+    commitOpen ? el(CommitDialog, {
+      onClose: () => setCommitOpen(false),
+      onDone: () => { refreshGit(); loadDir(rootPath) },
+      onError,
+    }) : null,
+    indexAsk ? el(IndexAskDialog, {
+      ask: indexAsk,
+      onClose: () => setIndexAsk(null),
+      onConfirm: confirmIndex,
+      busy: indexBusy,
+    }) : null,
   )
 }

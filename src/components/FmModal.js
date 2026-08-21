@@ -5,6 +5,7 @@ import React from 'react'
 import { IconLinkOutline14, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api } from '../core/api.js'
 import { store, setOpen, useOpen } from '../core/store.js'
+import { FM_METHODS } from '../shared/fm-contract.js'
 import { useFmWorkspace } from '../hooks/useFmWorkspace.js'
 import { useFmPreviews } from '../hooks/useFmPreviews.js'
 import { TreePanel } from './TreePanel.js'
@@ -38,26 +39,20 @@ export function FmModal() {
   const doReference = async () => {
     if (!menu) return
     const ref = '`' + menu.path + '`'
-    // 入口移至侧边栏底部（根作用域）后不再持有输入框上下文：
-    // 有 inputActions（旧会话标题栏路径）时插入输入框草稿，否则回退为复制路径
-    if (store.inputActions && store.inputActions.setDraft) {
-      const prev = store.draft || ''
-      store.inputActions.setDraft((prev ? prev + '\n' : '') + ref + ' ')
-    } else {
+    // 入口移至侧边栏底部（根作用域）后不持有输入框上下文：一律复制路径到剪贴板
+    try {
+      await navigator.clipboard.writeText(ref)
+    } catch (e) {
       try {
-        await navigator.clipboard.writeText(ref)
-      } catch (e) {
-        try {
-          const ta = document.createElement('textarea')
-          ta.value = ref
-          ta.style.position = 'fixed'
-          ta.style.opacity = '0'
-          document.body.appendChild(ta)
-          ta.select()
-          document.execCommand('copy')
-          document.body.removeChild(ta)
-        } catch (e2) { /* 复制失败则忽略 */ }
-      }
+        const ta = document.createElement('textarea')
+        ta.value = ref
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      } catch (e2) { /* 复制失败则忽略 */ }
     }
     setMenu(null)
   }
@@ -67,7 +62,7 @@ export function FmModal() {
     setBusy(true)
     setError(null)
     try {
-      const r = await api('fm-remove', { path: menu.path, sessionId: store.sessionId, root: store.root })
+      const r = await api(FM_METHODS.REMOVE, { path: menu.path, sessionId: store.sessionId, root: store.root })
       if (r && r.ok) {
         const deleted = menu.path
         const wasDir = menu.isDir
@@ -96,7 +91,7 @@ export function FmModal() {
         el('button', { className: 'fm-btn', onClick: () => setMenu(null) }, '取消'),
       ),
     ] : [
-      el(MenuItem, { key: 'r', icon: IconLinkOutline14, onClick: doReference }, store.inputActions && store.inputActions.setDraft ? '引用到会话' : '复制路径'),
+      el(MenuItem, { key: 'r', icon: IconLinkOutline14, onClick: doReference }, '复制路径'),
       menu.path === ws.rootPath ? null : el(MenuItem, { key: 'd', icon: IconTrashOutline16, danger: true, onClick: () => setMenu(Object.assign({}, menu, { confirm: true })) }, '删除'),
     ],
   ) : null

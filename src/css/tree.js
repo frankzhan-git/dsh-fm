@@ -31,6 +31,24 @@ export const TREE_CSS = `
 }
 .fm-git-btn-on:hover { background: color-mix(in srgb, var(--fm-accent) 22%, transparent); color: var(--fm-accent); }
 .fm-git-btn:focus-visible { outline: 2px solid var(--fm-accent); outline-offset: -2px; }
+/* 未建立仓库时的胶囊按钮（初始化仓库 / 安装并初始化仓库） */
+.fm-capsule {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--fm-border-strong); border-radius: 999px;
+  background: transparent; color: var(--fm-text-2);
+  padding: 3px 12px; font-size: 12px; line-height: 1.4;
+  cursor: pointer; white-space: nowrap;
+  transition: background-color .1s ease, color .1s ease;
+}
+.fm-capsule:hover { background: var(--fm-hover); color: var(--fm-text); }
+.fm-capsule:disabled { opacity: .55; cursor: default; }
+.fm-capsule:focus-visible { outline: 2px solid var(--fm-accent); outline-offset: -2px; }
+/* 索引管理复选框 */
+.fm-index-cb {
+  flex: none; width: 14px; height: 14px; margin: 0; padding: 0;
+  cursor: pointer; accent-color: var(--fm-accent);
+}
+.fm-index-cb:disabled { cursor: default; opacity: .45; }
 .fm-hint { flex: none; padding: 0 12px 4px; font-size: 11px; color: var(--fm-text-2); }
 .fm-path { flex: none; padding: 2px 12px 8px; font-size: 12px; color: var(--fm-text-2); word-break: break-all; user-select: text; }
 .fm-list-wrap {

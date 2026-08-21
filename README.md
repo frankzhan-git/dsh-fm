@@ -1,6 +1,7 @@
 # dsh-fm — DSH 工作目录文件管理器
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![npm test](https://img.shields.io/badge/tests-36%20passing-brightgreen.svg)](./test)
 
 一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在侧边栏底部提供「文件」入口（与「知识库」横向均分同一行），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并可视化 Git 变更状态。完全开源。
 
@@ -15,17 +16,25 @@
   - 工具栏 +/− 总变更、提交按钮（↓ 图标）、「仅显示变更文件」筛选
   - 文件行 +/− 徽标；目录行聚合徽标（`N files +X −Y`，悬停看明细）
   - 未被 git 索引（未跟踪/被 .gitignore 忽略）的文件与文件夹整体暗色显示
-- **右键菜单**：复制路径（根作用域入口回退为剪贴板复制）、删除（限工作目录内，二次确认）
+- **Git 初始化 / 安装**：未建立仓库时，工具栏按环境自动显示胶囊按钮——已安装 git 显示「初始化仓库」（一键在根目录 `git init`）；未安装 git 显示「安装并初始化仓库」，按平台自动适配：Windows（先探测 winget，用户级安装免管理员；缺失/失败则下载 MinGit 便携版，按 CPU 架构 x64/arm64/32 位选择资产，解压后追加用户 PATH）、macOS（Homebrew → Xcode Command Line Tools）、Linux（root 用户直装或无密码 sudo，apt/dnf/yum/apk/pacman/zypper 按发行版级联），失败时给出可手动执行的命令提示
+- **索引管理**：仓库模式下工具栏新增「索引管理」按钮，点击后树行文件/文件夹图标左侧出现复选框；勾选=加入索引（移除 .gitignore 条目），取消=排除（写入 .gitignore），所有更改即时同步 `.gitignore`；操作非空文件夹时弹窗询问「批量设置内部所有文件」或「仅本文件夹」；位于已忽略目录内的路径会提示先取消上级忽略
+- **右键菜单**：复制路径（剪贴板）、删除（限工作目录内，二次确认）
 - **体验细节**：上下滚动渐变蒙层、未索引内容悬停恢复亮度、250ms 手动双击检测、DSH 主题 token 自适应（深浅色跟随）
 
 ## 快速安装（免构建）
 
-> 也可以直接下载现成安装包：**[Releases 页面](https://github.com/frankzhan-git/dsh-fm/releases)** 下载 `dsh-fm-0.2.0.zip`，解压后运行其中的 `install.ps1` 一键安装（内置安装/使用文档）。
+> 推荐直接下载现成安装包：**[Releases 页面](https://github.com/frankzhan-git/dsh-fm/releases)** 下载 `dsh-fm-0.4.0.zip`，解压后运行其中的 `install.ps1` 一键安装（内置安装/使用文档）。
 
-直接安装本仓库（`lib/` 已包含预构建产物）：
+> 说明：`lib/client.js` 为构建产物（`npm run build` 生成），已移出 git 跟踪；Release 安装包内包含最新构建产物。
+
+## 从源码安装
 
 ```powershell
-dsh plugin --profile web add "dsh-fm@github:frankzhan-git/dsh-fm"
+git clone https://github.com/frankzhan-git/dsh-fm.git
+cd dsh-fm
+npm install
+npm run build   # 生成 lib/client.js
+dsh plugin --profile web add "file:<克隆目录绝对路径>"
 ```
 
 然后创建中文显示名的目录联接（插件管理器显示「dsh文件管理器」；pnpm 不接受中文依赖键，中文名需通过联接解析）：
@@ -46,11 +55,13 @@ dsh plugin --profile web add "dsh-fm@github:frankzhan-git/dsh-fm"
 ```bash
 npm install
 npm run build   # esbuild 打包 src/client.js → lib/client.js
+npm test        # node:test 纯函数与 git 命令端口测试
 ```
 
-- host 半（`lib/index.js`）为纯 ESM，无需构建
+- host 半（`lib/`）为纯 ESM，无需构建
 - 客户端 bundle 的 banner id 必须与 `cordis.patch.yml` 中的 `name` 一致
-- 本仓库已提交 `lib/client.js`，克隆后不构建也可直接安装
+- `lib/client.js` 为构建产物（git 忽略）；Release 安装包已包含最新构建产物，或执行 `npm run build` 生成
+- 发布快照同步：`node scripts/sync-release.mjs`（复制源码与构建产物到 `dsh-fm-release/`）
 
 ## 项目结构
 
@@ -58,19 +69,26 @@ npm run build   # esbuild 打包 src/client.js → lib/client.js
 dsh-fm-plugin/
 ├── src/
 │   ├── client.js              # 插件入口：样式注入 + 槽位注册（仅装配）
+│   ├── shared/                # host 与 client 共享（单一副本）
+│   │   └── fm-contract.js     #   RPC 契约：方法名常量/参数说明/路由（禁止裸字符串）
 │   ├── core/                  # 纯逻辑（零 React 依赖）
 │   │   ├── constants.js       #   全局常量（选项卡上限/轮询间隔/双击窗口/高亮上限）
 │   │   ├── format.js          #   路径/大小/排序工具
 │   │   ├── highlight.js       #   语法高亮分词（30+ 语言关键字表）
 │   │   ├── diff.js            #   git diff 文本解析
-│   │   ├── api.js             #   /api/fm RPC 封装
-│   │   └── store.js           #   跨组件共享的轻量会话状态 + useOpen
+│   │   ├── api.js             #   /api/fm RPC 封装（契约驱动，运行时校验）
+│   │   └── store.js           #   轻量会话状态（open 订阅 + RPC 请求上下文）
 │   ├── hooks/                 # 状态机（业务逻辑）
-│   │   ├── useFmWorkspace.js  #   文件树（懒加载/轮询）+ git 状态（聚合徽标/筛选）
+│   │   ├── useFmTree.js       #   文件树（懒加载/轮询/导航）
+│   │   ├── useFmGit.js        #   git 状态（聚合徽标/筛选/可见性）
+│   │   ├── useFmWorkspace.js  #   组合层（对外接口不变）
 │   │   └── useFmPreviews.js   #   预览选项卡（打开/读取/区间关闭/删除联动清理）
 │   ├── components/            # UI 组件（React.createElement）
-│   │   ├── FmModal.js         #   弹窗控制器：编排两个 Hook + 行右键菜单/删除/引用
-│   │   ├── TreePanel.js       #   左侧树列（工具栏/git/提交/列表行）
+│   │   ├── FmModal.js         #   弹窗控制器：编排两个 Hook + 行右键菜单/删除/复制
+│   │   ├── TreePanel.js       #   左侧树列外壳（工具栏/git/列表容器）
+│   │   ├── FileRow.js         #   树行渲染（递归/双击/右键/徽标/索引复选框）
+│   │   ├── CommitDialog.js    #   提交变更浮窗
+│   │   ├── IndexAskDialog.js  #   索引批量询问浮窗
 │   │   ├── PreviewPanel.js    #   右侧预览列（头部/选项卡/正文/空态/二次确认）
 │   │   ├── TabBar.js          #   选项卡栏（渐隐蒙层 + 右键关闭菜单）
 │   │   ├── ContextMenu.js     #   通用右键菜单（含 disabled 项）
@@ -85,26 +103,38 @@ dsh-fm-plugin/
 │       └── index.js           #   FM_CSS 聚合
 ├── lib/
 │   ├── index.js        # host 入口：服务获取 + /api/fm 路由注册（薄入口，同 dsh-kb 模式）
-│   ├── fm-core.js      # host 业务核心：文件浏览/读取/删除、git 状态/差异/提交（依赖注入工厂）
-│   ├── fm-mermaid.js   # mermaid 子集渲染器（flowchart/sequenceDiagram/pie → SVG，纯函数）
-│   └── client.js       # 客户端预构建产物（esbuild 打包 src/** → 单个 ModuleLoader bundle，内联 Mermaid）
-├── scripts/build.mjs   # esbuild 构建脚本（入口 src/client.js）
+│   ├── fm-core.js      # 兼容转发层（领域拆分的统一导出）
+│   ├── fm-core/        # host 业务核心（领域拆分，依赖注入工厂）
+│   │   ├── index.js    #   createFmCore 工厂：组装各域 + 契约守卫
+│   │   ├── shell.js    #   基础设施：shell 封装/git 探测缓存/统一命令端口
+│   │   ├── fs.js       #   文件域：浏览/读取/删除
+│   │   ├── git.js      #   git 域：状态/差异/提交/初始化
+│   │   ├── git-install.js # git 安装域：winget/MinGit/Homebrew/包管理器级联
+│   │   ├── git-index.js   # 索引域：.gitignore 解析/写入/同步
+│   │   └── util.js     #   共享小工具
+│   └── client.js       # 客户端预构建产物（npm run build 生成，git 忽略，内联 Mermaid）
+├── test/               # node:test 用例（纯函数 + git 命令端口 fake shell）
+├── scripts/
+│   ├── build.mjs       # esbuild 构建脚本（入口 src/client.js）
+│   └── sync-release.mjs# 发布快照同步（源码 + 构建产物 → dsh-fm-release/）
 ├── cordis.patch.yml    # profile bundle 补丁层（插件注册行）
 └── package.json        # 包清单（dsh.bundle / dsh.client 声明）
 ```
 
-> **架构约定**：`core/` 保持零 React 依赖、便于单测；`hooks/` 集中管理状态与副作用，组件保持「渲染 + 回调」薄层；新增功能优先落在对应模块，避免回退为单文件开发。`lib/client.js` 是 ModuleLoader 单 bundle 产物（加载器要求一个插件一个模块），源码层面已彻底模块化。
+> **架构约定**：`core/` 保持零 React 依赖、便于单测；`hooks/` 按域拆分（树 / git / 预览），组件保持「渲染 + 回调」薄层；host 侧 `fm-core/` 按领域拆包，RPC 层（handlers）只做参数校验与编排，命令串与解析逻辑下沉为可注入端口（fake shell 可测）；RPC 方法名一律引用 `src/shared/fm-contract.js`。`lib/client.js` 是 ModuleLoader 单 bundle 产物（加载器要求一个插件一个模块），源码层面已彻底模块化。
 
 ## 工作原理
 
-- **host 半**注入 `fs / shell / sandboxPolicy / sessions / webServer` 服务，注册 `/api/fm` HTTP 路由分发全部 RPC（`fm-list / fm-read / fm-git-status / fm-git-diff / fm-git-commit / fm-remove / fm-mermaid-render`）
+- **host 半**注入 `fs / shell / sandboxPolicy / sessions / webServer` 服务，注册 `/api/fm` HTTP 路由分发全部 RPC（`fm-root / fm-list / fm-read / fm-git-status / fm-git-diff / fm-git-commit / fm-git-init / fm-git-install-init / fm-git-index-set / fm-remove`）；方法名与参数见 `src/shared/fm-contract.js`（契约守卫运行时校验实现完整性）
 - **client 半**通过 `dsh.client` 声明加载，渲染文件树、预览与 Git UI，经 `fetch('/api/fm')` 与 host 通信
-- 目录与 git 状态每 3 秒轮询一次；git 命令按「双 shell 兼容」约定编写（见下）
+- 目录与 git 状态每 3 秒轮询一次（目录轮询与 git 轮询解耦，git 命令慢不阻塞目录更新）；git 命令按「双 shell 兼容」约定编写（见下）
 
 ## 开发约定（重要）
 
 - **Shell 兼容**：Windows 的 DSH shell 后端是 PowerShell，Linux/macOS 是 bash。所有 shell 命令必须两端兼容：只用普通命令串联 + `; echo 标记` 分段；禁止 `||`、`&&`、重定向、`if...fi`、`rm` 等单侧语法；确需分叉时用 `process.platform` 显式分支
+- **RPC 契约单一副本**：新增/修改 RPC 时同步 `src/shared/fm-contract.js`（方法名常量 + FM_ARGS），client 一律经 `api(FM_METHODS.xxx)` 调用，禁止裸字符串方法名
 - **host 插件必须声明 `inject`**：Loader 架构下 apply 会在依赖服务提供前执行，不声明 inject 时 `ctx.get(...)` 全为 undefined，路由不会注册
+- **测试**：`npm test` 跑 node:test；host 纯函数与 git 命令串（fake shell）必须有覆盖，新增逻辑优先下沉为可测纯函数
 - **图标统一使用 DSH 内置图标库**（`@deepseek-ai/dsh-client-ui-primitives`），不自定义 SVG；新增图标时先查库内语义最接近的 glyph，并在 `dsh.client.inject` 中保持该依赖声明
 - 插件管理器显示名取自 patch 行的 `name`（模块说明符），banner id 必须与之保持一致
 

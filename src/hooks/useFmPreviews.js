@@ -3,9 +3,10 @@
 import React from 'react'
 import { api } from '../core/api.js'
 import { store } from '../core/store.js'
-import { extOf, fmtSize, relOf } from '../core/format.js'
+import { extOf, fmtSize } from '../core/format.js'
 import { langFor, tokenize } from '../core/highlight.js'
 import { HL_LIMIT, MAX_TABS } from '../core/constants.js'
+import { FM_METHODS } from '../shared/fm-contract.js'
 
 let previewSeq = 0
 
@@ -33,7 +34,7 @@ export function useFmPreviews(opts) {
     })
     setActiveKey(key)
     try {
-      const r = await api('fm-read', { path: entry.path, sessionId: store.sessionId, root: store.root })
+      const r = await api(FM_METHODS.READ, { path: entry.path, sessionId: store.sessionId, root: store.root })
       if (r && r.ok) {
         let data
         if (r.kind === 'image') {
@@ -41,9 +42,9 @@ export function useFmPreviews(opts) {
         } else if (r.kind === 'text') {
           const conf = langFor(extOf(entry.name))
           const tokens = r.content && r.content.length <= HL_LIMIT ? tokenize(r.content, conf) : null
-          data = { kind: 'text', content: r.content || '', tokens, truncated: !!r.truncated, size: r.size }
+          data = { kind: 'text', content: r.content || '', tokens, truncated: !!r.truncated, limit: r.limit, size: r.size }
         } else if (r.kind === 'tooLarge') {
-          data = { kind: 'unsupported', size: r.size, ext: null, message: '文件过大（' + fmtSize(r.size) + '），仅支持预览 512 KB 以内的文本' }
+          data = { kind: 'unsupported', size: r.size, ext: null, message: r.message || ('文件过大（' + fmtSize(r.size) + '），无法预览') }
         } else {
           data = { kind: 'unsupported', size: r.size, ext: r.ext, message: null }
         }
@@ -66,7 +67,7 @@ export function useFmPreviews(opts) {
     setPreviews((prev) => prev.map((p) => p.key === pv.key ? Object.assign({}, p, { diff: next }) : p))
     if (next && pv.diffData == null && !pv.diffUntracked) {
       try {
-        const r = await api('fm-git-diff', { rel: relOf(store.root, pv.path), sessionId: store.sessionId, root: store.root })
+        const r = await api(FM_METHODS.GIT_DIFF, { path: pv.path, sessionId: store.sessionId, root: store.root })
         if (r && r.ok) {
           setPreviews((prev) => prev.map((p) => p.key === pv.key ? Object.assign({}, p, { diffData: r.raw, diffUntracked: !!r.untracked, diffUntrackedContent: r.untrackedContent || null }) : p))
         } else if (onError) {

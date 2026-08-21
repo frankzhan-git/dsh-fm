@@ -1,7 +1,7 @@
 {
   "name": "dsh-fm",
-  "version": "0.2.0",
-  "description": "工作目录文件管理器：树形浏览、只读预览（代码/图片/Markdown/Mermaid）、Git 变更管理",
+  "version": "0.4.0",
+  "description": "工作目录文件管理器：树形浏览、只读预览（代码/图片/Markdown/Mermaid）、Git 变更管理/仓库初始化/索引管理",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -11,7 +11,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
     "mermaid": "^11.4.1"
