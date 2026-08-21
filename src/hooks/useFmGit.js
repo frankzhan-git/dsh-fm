@@ -13,6 +13,10 @@ export function useFmGit(opts) {
   const [diffOnly, setDiffOnly] = React.useState(false)
 
   const gitBusy = React.useRef(false)
+  // 卡死防护：记录 busy 起始时间；请求超过阈值仍未完成（fetch 已超时但仍未回落）
+  // 视为挂起，强制复位并重试，避免轮询被永久卡死导致无限 loading
+  const gitBusySince = React.useRef(0)
+  const GIT_BUSY_TTL = 20000
   const gitSigRef = React.useRef('')
   // 当前锚点（视图根）引用：丢弃过期锚点的响应，避免导航竞态覆盖新数据
   const rootPathRef = React.useRef(rootPath)
@@ -149,11 +153,19 @@ export function useFmGit(opts) {
   // 保证进入子仓库后胶囊/徽标/提交/筛选随视图切换为该仓库的数据
   React.useEffect(() => {
     if (!open) return
+    // 锚点未就绪（初次打开的瞬间 rootPath 尚为 null）：跳过请求，
+    // 等 useFmTree 设置 rootPath 后本 effect 重跑再拉取（消除 null 锚点双请求窗口）
+    if (!rootPathRef.current) return
     setGitInfo(null)
     refreshGit()
     const gitTimer = setInterval(async () => {
-      if (gitBusy.current) return
+      if (gitBusy.current) {
+        // 挂起超时 → 强制复位，允许重试（fetch 超时 abort 后正常回落走这里兜底）
+        if (Date.now() - gitBusySince.current < GIT_BUSY_TTL) return
+        gitBusy.current = false
+      }
       gitBusy.current = true
+      gitBusySince.current = Date.now()
       try {
         await refreshGit()
       } finally {

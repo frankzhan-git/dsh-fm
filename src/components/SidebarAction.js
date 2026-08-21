@@ -1,6 +1,5 @@
-// 侧边栏底部入口按钮（sidebar.footer.action，与知识库同位置同形式）：
-// wide 模式 = 图标 + 文字行，rail（收起）模式 = 圆形图标；
-// 会话上下文取自根作用域标准 props 的 useSessions（当前会话 cwd，单次订阅）
+// 会话输入框工具行左端的「文件」按钮（conversation.input.left，与画布插件同区）：
+// 小图标按钮形态（26×26，仿 wf-input-btn）；点击时取当前会话 cwd 写入 store 再开弹窗。
 import React from 'react'
 import { IconFolderClose16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { store, setOpen, useOpen } from '../core/store.js'
@@ -11,7 +10,6 @@ const el = React.createElement
 export function SidebarAction(props) {
   const open = useOpen()
   const p = props || {}
-  const wide = !!p.wide
   const useSessions = p.useSessions || (() => null)
   // 单次订阅同时取当前会话 id 与其 cwd，避免双重订阅
   const sess = useSessions((s) => {
@@ -24,9 +22,10 @@ export function SidebarAction(props) {
   const cwd = sess ? sess.cwd : null
   return el('button', {
     type: 'button',
-    className: 'fm-sidebar-btn' + (wide ? '' : ' fm-sidebar-btn-rail') + (open ? ' fm-sidebar-btn-on' : ''),
+    className: 'fm-input-btn' + (open ? ' fm-input-btn-on' : ''),
     title: '工作目录文件管理器',
     'aria-pressed': open,
+    'aria-label': '文件管理',
     onClick: () => {
       store.sessionId = sid || null
       const rc = cwd ? norm(cwd) : null
@@ -36,5 +35,5 @@ export function SidebarAction(props) {
       }
       setOpen(!store.open)
     },
-  }, el(IconFolderClose16, { size: wide ? 16 : 18 }), wide ? el('span', { className: 'fm-sidebar-label' }, '文件') : null)
+  }, el(IconFolderClose16, { size: 16 }))
 }

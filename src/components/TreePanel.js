@@ -4,7 +4,6 @@ import React from 'react'
 import {
   IconBranchOutline16,
   IconChecklistOutline14,
-  IconChevronUpOutline14,
   IconDownloadOutline16,
   IconSearchOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -22,7 +21,7 @@ export function TreePanel(props) {
   const { ws, error, busy, onOpenFile, onRowMenu, onError } = props
   const {
     rootPath, tree, gitInfo, diffOnly,
-    loadDir, navigate, goParent, goWorkspaceRoot, refreshGit,
+    loadDir, navigate, goWorkspaceRoot, refreshGit,
   } = ws
 
   const [commitOpen, setCommitOpen] = React.useState(false)
@@ -153,12 +152,8 @@ export function TreePanel(props) {
         title: '回到工作目录',
         onClick: goWorkspaceRoot,
       }, '工作目录'),
-    ),
-    error ? el('div', { className: 'fm-error' }, error) : null,
-    el('div', { className: 'fm-toolbar' },
-      el('button', { className: 'fm-btn', title: '上级目录', disabled: !rootPath, onClick: goParent }, el(IconChevronUpOutline14, { size: 14 }), '上级'),
       el('span', { className: 'fm-spacer' }),
-      // git 状态未初始化（进入目录/初始加载）：与胶囊同形的友好 loading 占位，防布局跳动
+      // 胶囊组（git 工具条 / 初始化胶囊 / loading 占位）与左上角标题同行、右对齐
       gitInfo === null ? el('div', { className: 'fm-git-loading', role: 'status' },
         el('span', { className: 'fm-git-loading-spin' }),
         '读取 git 状态…',
@@ -192,7 +187,8 @@ export function TreePanel(props) {
         gitOpBusy ? (gitInfo.gitInstalled === false ? '安装中…' : '初始化中…') : (gitInfo.gitInstalled === false ? '安装并初始化仓库' : '初始化仓库'),
       ) : null,
     ),
-    el('div', { className: 'fm-hint' }, indexMode ? '勾选=加入索引，取消=排除并同步 .gitignore' : '单击展开/预览，双击进入目录，右键更多操作'),
+    error ? el('div', { className: 'fm-error' }, error) : null,
+    el('div', { className: 'fm-hint' }, indexMode ? '勾选=加入索引，取消=排除并同步 .gitignore' : '单击展开/预览，双击进入目录，双击根目录返回上级，右键更多操作'),
     // 路径行：精简显示（长路径只保留末尾段，防换行），完整路径在 title
     el('div', { className: 'fm-path', title: rootPath }, shortPath(rootPath) || ''),
     busy ? el('div', { className: 'fm-busy' }, '…') : null,

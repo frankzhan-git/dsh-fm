@@ -129,8 +129,20 @@ export const BASE_CSS = `
   background: color-mix(in srgb, var(--fm-warn) 12%, transparent);
   color: var(--fm-warn);
 }
+/* 会话输入框工具行入口按钮（conversation.input.left，与画布插件同形） */
+.fm-input-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  background: transparent; border: none; border-radius: 6px;
+  color: var(--dsw-alias-label-secondary, #8b95a7);
+  cursor: pointer;
+  transition: background-color .1s ease, color .1s ease;
+}
+.fm-input-btn:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(148,163,184,.12)); color: var(--dsw-alias-label-primary, #e2e8f0); }
+.fm-input-btn-on { background: var(--dsw-alias-interactive-bg-hover, rgba(148,163,184,.16)); color: var(--dsw-alias-brand-primary, #6ea8ff); }
+.fm-input-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, #6ea8ff); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
   .fm-modal-panel { animation: none; }
-  .fm-chev, .fm-btn, .fm-row, .fm-tab, .fm-tab-close, .fm-modal-close, .fm-menu-item, .fm-git-btn, .fm-capsule, .fm-diff-btn, .fm-md-btn, .fm-sidebar-btn { transition: none; }
+  .fm-chev, .fm-btn, .fm-row, .fm-tab, .fm-tab-close, .fm-modal-close, .fm-menu-item, .fm-git-btn, .fm-capsule, .fm-diff-btn, .fm-md-btn, .fm-input-btn { transition: none; }
 }
 `

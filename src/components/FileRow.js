@@ -49,12 +49,14 @@ export function FileRow({ ws, node, depth, dim, ui }) {
     // 手动双击检测：两次单击间隔 ≤ DBL_CLICK_MS 视为双击进入目录。
     // 不用浏览器原生 dblclick（跟随系统设置约 500ms，慢速连续单击会被误判），
     // 缩短到 250ms：故意连续展开/收起两次不会触发，快速双击仍然有效。
+    // 双击根目录节点 = 回退上级（替代原「上级」按钮，间隔与下钻一致）。
     rowProps.onClick = () => {
       const now = Date.now()
       const last = lastDirClickRef.current
       if (last && last.path === node.path && now - last.time <= DBL_CLICK_MS) {
         lastDirClickRef.current = null
         if (node.path !== rootPath) navigate(node.path)
+        else if (ws.goParent) ws.goParent()
         return
       }
       lastDirClickRef.current = { path: node.path, time: now }

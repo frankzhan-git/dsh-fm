@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![npm test](https://img.shields.io/badge/tests-58%20passing-brightgreen.svg)](./test)
 
-一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在侧边栏底部提供「文件」入口（与「知识库」横向均分同一行），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并以「看得懂」的方式可视化 Git 变更。完全开源。
+一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在**会话输入框工具行**提供「文件」入口（与「界面草图」同区），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并以「看得懂」的方式可视化 Git 变更。完全开源。
 
 ![dsh-fm 产品预览](view.png)
 
@@ -20,7 +20,7 @@ dsh-fm 不是给研发人员准备的又一款 git 客户端。它服务的场�
 ## 功能特性
 
 - **全局弹窗**：与 DSH 设置面板同款居中弹窗（遮罩模糊 + 圆角面板，Esc / 遮罩点击 / 关闭按钮均可关闭）；左侧为文件目录树与全部相关功能，右侧为预览面板
-- **树形浏览**：单击展开/收起，双击进入目录，标题可一键回到工作区根
+- **树形浏览**：单击展开/收起，双击进入目录，**双击根目录返回上级**，标题可一键回到工作区根
 - **预览面板**：默认常显（无打开文件时显示空态引导），多选项卡（上限 20），代码语法着色（30+ 语言）、图片、Markdown 渲染（含 Mermaid 图；`.md` 默认渲染预览，可一键切回源码）；选项卡右键菜单提供「关闭当前 / 右侧 / 左侧 / 其他 / 全部」五种关闭模式（无可关闭对象时禁用但保留显示）
 - **Git 上下文跟随视图**：
   - git 判定以**当前打开的目录**为锚点：锚点自带 `.git` 用自身仓库，否则用最近上级仓库
@@ -111,7 +111,7 @@ dsh-fm-plugin/
 │   │   ├── ContextMenu.js     #   通用右键菜单（含 disabled 项）
 │   │   ├── Markdown.js        #   Markdown 渲染 + Mermaid（mermaid 唯一引用点）
 │   │   ├── FileBadge.js       #   文件类型徽标
-│   │   └── SidebarAction.js   #   侧边栏底部「文件」入口（与知识库同区同形式）
+│   │   └── SidebarAction.js   #   会话输入框工具行「文件」入口（与画布插件同区同形）
 │   └── css/                   # 样式按区域拆分，构建时拼接
 │       ├── base.js            #   弹窗壳/按钮/错误条/reduced-motion
 │       ├── tree.js            #   树列样式（含 git 标签/loading 占位）
