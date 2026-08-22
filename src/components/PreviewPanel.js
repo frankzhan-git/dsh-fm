@@ -1,7 +1,7 @@
 // 预览列：头部（关闭按钮）+ 选项卡栏 + 正文 / 空态
 // 正文按选项卡记忆化（轮询触发的重渲染不重算 Markdown/diff/高亮）
 import React from 'react'
-import { IconBrowseOutline16, IconCloseOutline16, IconCodeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconBrowseOutline16, IconCloseOutline16, IconCodeOutline16, IconFullscreenOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { TabBar } from './TabBar.js'
 import { mdRender } from './Markdown.js'
 import { parseDiff, allAddRows } from '../core/diff.js'
@@ -12,7 +12,7 @@ import { HL_LIMIT, DIFF_MAX_ROWS } from '../core/constants.js'
 const el = React.createElement
 
 export function PreviewPanel(props) {
-  const { pv, gitMap, closeBtnRef, onCloseModal } = props
+  const { pv, gitMap, closeBtnRef, onCloseModal, fullscreen, onToggleFullscreen } = props
   const { previews, activeKey, setActiveKey, activePreview, toggleDiff, toggleMd, closeTab, closeRange, closeOthers, closeAllTabs } = pv
 
   const isChanged = !!(activePreview && gitMap[activePreview.path])
@@ -85,6 +85,12 @@ export function PreviewPanel(props) {
   return el('div', { className: 'fm-col-preview' },
     el('div', { className: 'fm-preview-head' },
       el('span', { className: 'fm-spacer' }),
+      el('button', {
+        className: 'fm-modal-close fm-fullscreen-toggle' + (fullscreen ? ' fm-fullscreen-toggle-on' : ''),
+        title: fullscreen ? '退出全屏' : '进入全屏',
+        'aria-pressed': fullscreen,
+        onClick: onToggleFullscreen,
+      }, el(IconFullscreenOutline16, { size: 14 })),
       el('button', {
         className: 'fm-modal-close',
         title: '关闭',

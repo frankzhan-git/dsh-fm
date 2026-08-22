@@ -42,7 +42,14 @@ export const BASE_CSS = `
   font-size: 13px; line-height: 1.5;
   overflow: hidden;
   animation: fm-in .14s ease;
+  transition: width .18s ease, height .18s ease, border-radius .18s ease;
 }
+/* 全屏态：铺满视口、去圆角；遮罩隐藏（面板已全覆盖，避免无谓的 backdrop-filter 开销） */
+.fm-modal-panel-fullscreen {
+  width: 100%; height: 100%;
+  border-radius: 0;
+}
+.fm-modal-overlay-fullscreen .fm-modal-mask { display: none; }
 @keyframes fm-in { from { opacity: 0; transform: translateY(4px) scale(.995); } to { opacity: 1; transform: none; } }
 .fm-col-tree {
   flex: none; width: 320px; min-width: 0;
@@ -85,6 +92,9 @@ export const BASE_CSS = `
 }
 .fm-modal-close:hover { background: var(--fm-hover); }
 .fm-modal-close:focus-visible { outline: 2px solid var(--fm-accent); outline-offset: -2px; }
+/* 全屏切换按钮（与关闭按钮同形，位于其左侧）；全屏态用主题色常亮标识 */
+.fm-fullscreen-toggle-on { color: var(--fm-accent); }
+.fm-fullscreen-toggle-on:hover { color: var(--fm-accent); }
 .fm-empty-preview {
   flex: 1 1 0%; min-height: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -142,7 +152,7 @@ export const BASE_CSS = `
 .fm-input-btn-on { background: var(--dsw-alias-interactive-bg-hover, rgba(148,163,184,.16)); color: var(--dsw-alias-brand-primary, #6ea8ff); }
 .fm-input-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, #6ea8ff); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .fm-modal-panel { animation: none; }
+  .fm-modal-panel { animation: none; transition: none; }
   .fm-chev, .fm-btn, .fm-row, .fm-tab, .fm-tab-close, .fm-modal-close, .fm-menu-item, .fm-git-btn, .fm-capsule, .fm-diff-btn, .fm-md-btn, .fm-input-btn { transition: none; }
 }
 `

@@ -19,19 +19,24 @@ export function FmModal() {
   const [error, setError] = React.useState(null)
   const [busy, setBusy] = React.useState(false)
   const [menu, setMenu] = React.useState(null) // 树行右键菜单：{ x, y, path, name, isDir, confirm }
+  const [fullscreen, setFullscreen] = React.useState(false) // 面板全屏态（关闭弹窗仅收起，重开保留，与目录/选项卡记忆一致）
   const closeBtnRef = React.useRef(null)
 
   const pv = useFmPreviews({ onError: setError })
   const ws = useFmWorkspace({ open, onError: setError, onBusy: setBusy, pruneMissing: pv.pruneMissing })
 
-  // 弹窗级关闭：Esc 键关闭；打开时聚焦关闭按钮（与 dsh web 设置弹窗一致）
+  // 弹窗级关闭：Esc 键关闭（全屏时先退出全屏）；打开时聚焦关闭按钮（与 dsh web 设置弹窗一致）
   React.useEffect(() => {
     if (!open) return
-    const onKeyDown = (e) => { if (e.key === 'Escape') setOpen(false) }
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return
+      if (fullscreen) setFullscreen(false)
+      else setOpen(false)
+    }
     document.addEventListener('keydown', onKeyDown)
     if (closeBtnRef.current) closeBtnRef.current.focus()
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open])
+  }, [open, fullscreen])
 
   // 弹窗关闭仅收起界面；目录记忆与已打开的预览选项卡保留（重开恢复）
   const closeModal = () => setOpen(false)
@@ -96,9 +101,9 @@ export function FmModal() {
     ],
   ) : null
 
-  return el('div', { className: 'fm-modal-overlay' },
+  return el('div', { className: 'fm-modal-overlay' + (fullscreen ? ' fm-modal-overlay-fullscreen' : '') },
     el('div', { className: 'fm-modal-mask', 'aria-hidden': true, onClick: closeModal }),
-    el('div', { className: 'fm-modal-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': '文件管理器' },
+    el('div', { className: 'fm-modal-panel' + (fullscreen ? ' fm-modal-panel-fullscreen' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': '文件管理器' },
       el(TreePanel, {
         ws,
         error,
@@ -110,7 +115,7 @@ export function FmModal() {
           setMenu({ x: e.clientX, y: e.clientY, path: node.path, name: node.name, isDir: node.type === 'directory', confirm: false })
         },
       }),
-      el(PreviewPanel, { pv, gitMap: ws.gitMap, closeBtnRef, onCloseModal: closeModal }),
+      el(PreviewPanel, { pv, gitMap: ws.gitMap, closeBtnRef, onCloseModal: closeModal, fullscreen, onToggleFullscreen: () => setFullscreen((v) => !v) }),
     ),
     rowMenu,
   )
