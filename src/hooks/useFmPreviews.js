@@ -6,7 +6,7 @@ import { store } from '../core/store.js'
 import { extOf, fmtSize } from '../core/format.js'
 import { langFor, tokenize } from '../core/highlight.js'
 import { HL_LIMIT, MAX_TABS } from '../core/constants.js'
-import { FM_METHODS } from '../shared/fm-contract.js'
+import { FM_METHODS } from '../shared/contract/index.js'
 
 let previewSeq = 0
 
@@ -50,7 +50,7 @@ export function useFmPreviews(opts) {
         }
         setPreviews((prev) => prev.map((p) => p.key === key ? Object.assign({}, p, data, { loading: false }) : p))
       } else {
-        if (onError) onError((r && r.error) || '读取失败')
+        if (onError) onError((r && (r.message || r.error)) || '读取失败')
         setPreviews((prev) => prev.filter((p) => p.key !== key))
         setActiveKey((cur) => (cur === key ? null : cur))
       }
@@ -71,7 +71,7 @@ export function useFmPreviews(opts) {
         if (r && r.ok) {
           setPreviews((prev) => prev.map((p) => p.key === pv.key ? Object.assign({}, p, { diffData: r.raw, diffUntracked: !!r.untracked, diffUntrackedContent: r.untrackedContent || null }) : p))
         } else if (onError) {
-          onError((r && r.error) || '获取 diff 失败')
+          onError((r && (r.message || r.error)) || '获取 diff 失败')
         }
       } catch (e) {
         if (onError) onError(e && e.message ? e.message : String(e))

@@ -9,13 +9,14 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DBL_CLICK_MS } from '../core/constants.js'
 import { fmtSize, sortKids } from '../core/format.js'
+import { indexStateOf, INDEX_STATE } from '../core/index-state.js'
 import { fileBadge } from './FileBadge.js'
 
 const el = React.createElement
 
 export function FileRow({ ws, node, depth, dim, ui }) {
   const { tree, gitMap, dirGit, untrackedSet, ignoredSet, visible, changedSet, diffOnly, toggleDir, navigate, rootPath } = ws
-  const { indexMode, indexBusy, onIndexToggle, onRowMenu, onOpenFile, lastDirClickRef, ignoredAncestorOf, isIgnoredEff } = ui
+  const { indexMode, indexBusy, onIndexToggle, onRowMenu, onOpenFile, lastDirClickRef, ignoredAncestorOf } = ui
 
   const isDir = node.type === 'directory'
   const dimmed = dim || untrackedSet.has(node.path) || ignoredSet.has(node.path)
@@ -67,15 +68,34 @@ export function FileRow({ ws, node, depth, dim, ui }) {
   }
   const g = gitMap[node.path]
   const dg = isDir ? dirGit[node.path] : null
+  // 索引状态（产品语义 v2）：目录三态（全部索引/部分索引/未索引），文件二态；
+  // 派生规则见 core/index-state.js（porcelain 折叠保证集合判定可靠；祖先继承：整目录标记向下传播）。
+  // 祖先被忽略 → 禁用并提示先取消上级忽略
+  const ancestor = ignoredAncestorOf(node.path)
+  const idxState = indexStateOf(node.path, ws.unindexedSet || new Set())
+  // 未跟踪祖先（?? dir/ 标记）：用于 OFF 态文案区分「未跟踪」与「已排除」
+  let untrackedAnc = null
+  if (!ancestor && idxState === INDEX_STATE.OFF) {
+    let i = node.path.lastIndexOf('/')
+    while (i > 0) {
+      const a = node.path.slice(0, i)
+      if (untrackedSet.has(a)) { untrackedAnc = a; break }
+      i = a.lastIndexOf('/')
+    }
+  }
+  const untracked = untrackedSet.has(node.path)
   const row = el('div', rowProps,
     indexMode ? el('input', {
       type: 'checkbox',
       className: 'fm-index-cb',
-      checked: !isIgnoredEff(node.path),
-      disabled: indexBusy || !!ignoredAncestorOf(node.path),
-      title: ignoredAncestorOf(node.path)
-        ? '上级目录已忽略（' + ignoredAncestorOf(node.path) + '），请先取消上级目录的忽略'
-        : (isIgnoredEff(node.path) ? '已排除（未加入索引）' : '已加入索引'),
+      checked: idxState === INDEX_STATE.ON || idxState === INDEX_STATE.PART,
+      ref: (eb) => { if (eb) eb.indeterminate = idxState === INDEX_STATE.PART },
+      disabled: indexBusy || !!ancestor,
+      title: ancestor
+        ? '上级目录已忽略（' + ancestor + '），请先取消上级目录的忽略'
+        : (idxState === INDEX_STATE.ON ? '已加入索引'
+          : idxState === INDEX_STATE.PART ? '部分索引（目录内部分内容未加入索引）'
+            : ((untracked || untrackedAnc) ? '未跟踪（未加入索引）' : '已排除（未加入索引）')),
       onClick: (e) => e.stopPropagation(),
       onChange: (e) => onIndexToggle(node, e.target.checked),
     }) : null,

@@ -3,7 +3,7 @@
 import React from 'react'
 import { api } from '../core/api.js'
 import { store } from '../core/store.js'
-import { FM_METHODS } from '../shared/fm-contract.js'
+import { FM_METHODS } from '../shared/contract/index.js'
 
 const el = React.createElement
 
@@ -23,7 +23,7 @@ export function CommitDialog({ anchor, onClose, onDone, onError }) {
         onClose()
         if (onDone) onDone()
       } else if (onError) {
-        onError((r && r.error) || '提交失败')
+        onError((r && (r.message || r.error)) || '提交失败')
       }
     } catch (e) {
       if (onError) onError(e && e.message ? e.message : String(e))

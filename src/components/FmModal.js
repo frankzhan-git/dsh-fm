@@ -5,7 +5,7 @@ import React from 'react'
 import { IconLinkOutline14, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api } from '../core/api.js'
 import { store, setOpen, useOpen } from '../core/store.js'
-import { FM_METHODS } from '../shared/fm-contract.js'
+import { FM_METHODS } from '../shared/contract/index.js'
 import { useFmWorkspace } from '../hooks/useFmWorkspace.js'
 import { useFmPreviews } from '../hooks/useFmPreviews.js'
 import { TreePanel } from './TreePanel.js'
@@ -14,7 +14,8 @@ import { ContextMenu, MenuItem } from './ContextMenu.js'
 
 const el = React.createElement
 
-export function FmModal() {
+export function FmModal(props) {
+  const t = (props && props.t) || ((k) => k)
   const open = useOpen()
   const [error, setError] = React.useState(null)
   const [busy, setBusy] = React.useState(false)
@@ -81,7 +82,7 @@ export function FmModal() {
         } else {
           ws.loadDir(ws.rootPath)
         }
-      } else setError((r && r.error) || '删除失败')
+      } else setError((r && (r.message || r.error)) || '删除失败')
     } catch (e) { setError(e && e.message ? e.message : String(e)) }
     finally { setBusy(false) }
   }
@@ -108,6 +109,7 @@ export function FmModal() {
         ws,
         error,
         busy,
+        t,
         onError: setError,
         onOpenFile: pv.openFile,
         onRowMenu: (node, e) => {

@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.8.0] — Git 域架构根治（状态机 / 官方协议 / 三切片）
+
+### 根治问题
+- **修复「git 胶囊始终 loading」**：旧签名优化在「重置后同数据响应」时跳过状态更新（重开弹窗/跨仓库往返数据未变 → 永久 loading）；旧 `null` 值同时承担 loading/error 两种语义，错误无出口
+- **新状态机**（`src/core/git-machine.js`，纯 reducer）：`boot/loading/ready/error` 四态；数据签名跳过仅在 `ready` 态允许（T3），`loading→ready`/`error→ready` 永不跳过（T4/T6）；过期锚点响应在 reducer 内丢弃（T2）；错误态保留上次数据、独立可见可重试（T5）
+- **git 胶囊四态渲染**（`GitCapsule.js`）：失败态显示「git 状态获取失败：<原因> [重试]」，不再伪装成 loading
+- **修复「索引管理点击后无作用」**：旧实现对**已跟踪路径**的排除只写 `.gitignore`——git 对已跟踪内容忽略该文件，状态无变化；`fm-git-index-set` 现先 `git ls-files` 判定跟踪状态，已跟踪 → `git rm --cached -r --ignore-unmatch`（工作区保留）再写 `.gitignore`（porcelain 归一为 `!!`，复选框正确翻转）；加入索引对曾任 rm --cached 的路径补 `git add` 恢复跟踪；重复条目去重、历史残留不重复追加
+- **复选框语义修正**：选中=正在索引（已被 git 跟踪），未跟踪（`??`）/已忽略（`!!`）显示未选中（旧版未跟踪项错误显示为已选中）
+- **二次确认/提交浮窗屏幕居中**：`.fm-pop2` 由弹窗内 `absolute` 定位改为 `fixed + translate(-50%,-50%)`（旧版被插件弹窗边缘截断），长文案允许换行
+- **索引二次确认决策卡（语义 v2：单一选项 + 目录三态）**（`IndexAskDialog` + `.fm-ask*` + `core/index-state.js`）：
+  - 非空文件夹只有**一个选择**：「全部加入索引 / 全部取消索引」（旧版「仅本文件夹 / 批量设置」二选一移除——两个选项在排除方向本就等价，且新语义按需求统一为全量处理；默认焦点在「取消」防误触 Enter）
+  - **目录三态勾选**：全部索引（选中）/ 部分索引（≥1 项索引且存在未索引内容，indeterminate）/ 未索引；文件二态；索引调整后父级三态随状态刷新自动派生
+  - 派生下沉为纯函数 `src/core/index-state.js`（porcelain 折叠规则保证按集合前缀判定可靠：整目录未跟踪/忽略 → 集合含目录标记 → 未索引；混合目录 → 逐条目列出 → 部分索引）
+  - 方向色 impact 条（等宽台账行）保留：「全部加入/取消索引 · <文件夹> 内 N 项」（probe 返回 `entryCount`）；文案明示「磁盘文件保留，不会被删除」；`role=alertdialog` + Esc 关闭 + reduced-motion 无动画
+- **修复「索引调整后子目录展开状态被收起」**：旧 `loadDir` 重刷目录列表时对**每个条目重建节点**（`expanded:false, loaded:false`）并覆盖——索引操作改写仓库根 `.gitignore`（尺寸变化）→ 文件树轮询判定根列表签名失效 → 重刷根目录 → 用户展开的全部子目录瞬间收起。修复：
+  - 合并式刷新下沉为纯函数 `src/core/tree-merge.js`（`mergeListing`）：已存在节点仅更新数据元信息（name/type/size/hasGit），**保留 UI 状态（loaded/expanded/childPaths）**；新条目才创建 fresh 节点；消失条目移除
+  - **统一刷新管线** `TreePanel.refreshAfterGitMutation()`：索引/提交/初始化后 git 状态 + 树列表合并式刷新（唯一入口），替代散落的 `refreshGit(); loadDir()` 组合
+- **修复「取消勾选文件夹后子项仍显示勾选」**：`index-state.js` 派生增加**祖先继承**——整目录未索引标记（`!! folder/` / `?? folder/`）向下传播，任意祖先（或自身）在未索引集合 ⇒ 该节点为未选中（off），子文件/子文件夹随文件夹一并未选中；OFF 态文案区分「未跟踪」与「已排除」祖先
+- **修复「初次勾选/取消勾选后文件树状态未更新」**：根因是 `useGitMachine` 的布尔 busy 单飞行——轮询 tick 在途时，索引/提交后的显式 `refreshGit()` 被**静默吞掉**（索引其实已更新，UI 数据不落地）。修复：
+  - 新增合并式单飞行刷新器 `src/core/refresh-coalescer.js`（纯函数）：在途期间的新刷新**只记录最新锚点、绝不丢弃**，当前请求完成后立即以最新锚点补跑；同批并发仅保留最新（同键收敛）
+  - `useGitMachine` 全面接入 —— 轮询与显式刷新共享合并器，`refreshAfterGitMutation` 的刷新**必达**
+- **预览兜底：未知扩展名默认文本预览**（`.git-credentials` 等点开头/无扩展名文件）：`fm-read` 对非图片/非已知文本类型做**内容采样嗅探**（纯函数 `lib/fm-core/text-sniff.js`，8KB 头：NUL 强信号 → 二进制；非打印控制字符占比 ≤2% → 文本）；文本 → 默认纯文本预览（`detected:true`，客户端沿用既有 text 渲染与无高亮回退），二进制 → 仍显示暂不支持；已知局限：UTF-16 文本（含 NUL）会判为二进制
+
+### 官方接口对齐（不重复造轮子）
+- **线协议信封化**：`/api/fm` 升级为官方四相信封（`client-request → server-response`，`{ok:true,value} | {ok:false,error:{code,message,details}}`，rpcId 发起方铸造，对齐 `dsh-host-apiproxy` rpcErrorSchema 风格）；信封/方法/错误码/限额单一副本 `src/shared/contract/`
+- **沙箱政策**：每次 git 执行经官方 `sandboxPolicy.resolve({session})` 按会话解析（读操作任意模式、写操作 read-only 会话拒绝 `sandbox-denied`），不再硬编码 `danger-full-access`
+- **工作区根解析链**：会话 `header.cwd` → 官方 `workspaceRegistry.host.sessionPath`（canonical+已验证）→ `sandboxPolicy.workspaceRoot`
+- **文案字典**：经官方 `dsh-client-locale` 注册 ns `fm`（zh/en），槽位条目声明 `locale: 'fm'` 获得框架 `t` 座席
+- **路由治理**：`webServer.register` 返回的 disposer 挂 `ctx.effect`；host 启动预热 git 探测（首个请求命中缓存）
+
+### Git 三切片（架构层）
+- 新增 `fm-git-context`（锚点→仓库，零 shell、毫秒级，骨架先行）与 `fm-git-capability`（探测低频缓存）；胶囊可在 status（shell 管线）就绪前按能力/上下文渲染正确形态
+
+### 治理
+- 端到端超时预算单一副本（`contract/fm-limits.js`：probe 6s ≤ 单命令 8s ≤ status 12s < 客户端 20s < 官方信使 30s）
+- 错误码枚举化（`contract/fm-errors.js`，kebab-case + details）；旧式返回由 `fm-core/errors.js` 语义表映射
+- 路由线协议语义下沉 `fm-core/route.js`（可单测）；状态机/信封/策略/能力域测试新增 39 例（97 通过）
+- **注意**：线协议升级，host 与 client 需**一起重启** DSH 生效
+
 ## [0.7.0] — 弹窗全屏/窗口切换
 
 ### 新特性

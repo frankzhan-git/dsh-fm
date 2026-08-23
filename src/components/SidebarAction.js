@@ -10,6 +10,7 @@ const el = React.createElement
 export function SidebarAction(props) {
   const open = useOpen()
   const p = props || {}
+  const t = p.t || ((k) => k)
   const useSessions = p.useSessions || (() => null)
   // 单次订阅同时取当前会话 id 与其 cwd，避免双重订阅
   const sess = useSessions((s) => {
@@ -23,9 +24,9 @@ export function SidebarAction(props) {
   return el('button', {
     type: 'button',
     className: 'fm-input-btn' + (open ? ' fm-input-btn-on' : ''),
-    title: '工作目录文件管理器',
+    title: t('input.title'),
     'aria-pressed': open,
-    'aria-label': '文件管理',
+    'aria-label': t('input.aria'),
     onClick: () => {
       store.sessionId = sid || null
       const rc = cwd ? norm(cwd) : null

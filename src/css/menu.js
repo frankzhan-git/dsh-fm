@@ -13,8 +13,77 @@ export const MENU_CSS = `
   font-size: 12px;
 }
 .fm-pop2 {
-  position: absolute;
-  top: 108px; right: 12px;
+  /* 二次确认/提交浮窗：相对屏幕居中（fixed 叠加层），不再锚定插件弹窗内（旧 absolute 会被面板边缘截断） */
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(420px, calc(100vw - 48px));
+  box-sizing: border-box;
+}
+.fm-pop2 .fm-menu-title {
+  /* 长文案（如批量确认说明）允许换行，防止弹窗横向溢出 */
+  white-space: normal;
+  width: 100%;
+}
+/* ---------- 索引二次确认决策卡（.fm-ask）：
+   单一选项确认 + 方向色 impact 条（签名元素） ---------- */
+.fm-ask {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2147483002; pointer-events: auto;
+  width: min(380px, calc(100vw - 48px));
+  box-sizing: border-box;
+  background: var(--fm-bg-raised);
+  color: var(--fm-text);
+  border: 1px solid var(--fm-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--fm-shadow);
+  padding: 14px 14px 12px;
+  font-size: 12px;
+  animation: fm-ask-in .12s ease-out;
+}
+@keyframes fm-ask-in { from { opacity: 0; transform: translate(-50%, -48%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.fm-ask-title {
+  display: flex; align-items: baseline;
+  font-size: 14px; font-weight: 600; color: var(--fm-text);
+  line-height: 1.4;
+}
+/* 文件夹名：等宽装置语言（与 +/- 统计同族），过长截断 */
+.fm-ask-name {
+  font-family: Consolas, 'Cascadia Code', Menlo, monospace;
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 250px;
+}
+.fm-ask-desc { margin-top: 4px; color: var(--fm-text-2); line-height: 1.55; }
+/* 签名元素：方向色 impact 条（台账行） */
+.fm-ask-impact {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 6px 10px;
+  border: 1px solid var(--fm-border); border-radius: 6px;
+  font-family: Consolas, 'Cascadia Code', Menlo, monospace;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.fm-ask-impact-include {
+  color: var(--fm-git-add);
+  background: color-mix(in srgb, var(--fm-git-add) 8%, transparent);
+  border-color: color-mix(in srgb, var(--fm-git-add) 30%, transparent);
+}
+.fm-ask-impact-exclude {
+  color: var(--fm-danger);
+  background: color-mix(in srgb, var(--fm-danger) 8%, transparent);
+  border-color: color-mix(in srgb, var(--fm-danger) 30%, transparent);
+}
+.fm-ask-impact-sep { opacity: .55; }
+/* 底部动作 */
+.fm-ask-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+.fm-ask-primary {
+  color: var(--fm-accent);
+  border-color: color-mix(in srgb, var(--fm-accent) 45%, transparent);
+  font-weight: 500;
+}
+.fm-ask-primary:hover { background: color-mix(in srgb, var(--fm-accent) 12%, transparent); color: var(--fm-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .fm-ask { animation: none; }
 }
 .fm-menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; cursor: pointer; color: var(--fm-text); white-space: nowrap; transition: background-color .1s ease; }
 .fm-menu-item:hover { background: var(--fm-hover); }

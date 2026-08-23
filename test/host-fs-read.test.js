@@ -92,8 +92,24 @@ test('fm-read 图片 > 上限：明确提示而非报错', async () => {
   assert.ok(r.message.includes('30 MB'))
 })
 
-test('fm-read 不支持的类型：unsupported', async () => {
-  const r = await handlers(makeFs())['fm-read'](args('app.exe'))
+test('fm-read 兜底：未知扩展名文本（.git-credentials 场景）→ 默认文本预览', async () => {
+  const r1 = await handlers(makeFs())['fm-read'](args('/r/.git-credentials', '.git-credentials'))
+  assert.equal(r1.ok, true)
+  assert.equal(r1.kind, 'text')
+  assert.equal(r1.content, 'hello') // 默认 fake readText
+  assert.equal(r1.detected, true, '嗅探兜底应带 detected 标记')
+  // 无点文件（扩展名为空）走原文本分支且不带 detected
+  const r2 = await handlers(makeFs())['fm-read'](args('/r/README', 'README'))
+  assert.equal(r2.ok, true)
+  assert.equal(r2.kind, 'text')
+  assert.equal(r2.detected, false)
+})
+
+test('fm-read 不支持的类型：采样含 NUL → 仍为 unsupported', async () => {
+  const fs = makeFs({
+    readBytes: async () => new Uint8Array([0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]),
+  })
+  const r = await handlers(fs)['fm-read'](args('app.exe'))
   assert.equal(r.ok, true)
   assert.equal(r.kind, 'unsupported')
   assert.equal(r.ext, 'exe')

@@ -3,8 +3,9 @@ import React from 'react'
 import { api } from '../core/api.js'
 import { store } from '../core/store.js'
 import { norm, base } from '../core/format.js'
+import { mergeListing } from '../core/tree-merge.js'
 import { POLL_MS } from '../core/constants.js'
-import { FM_METHODS } from '../shared/fm-contract.js'
+import { FM_METHODS } from '../shared/contract/index.js'
 
 export function useFmTree(opts) {
   const { open, onError, onBusy, pruneMissing } = opts || {}
@@ -22,22 +23,18 @@ export function useFmTree(opts) {
     try {
       const r = await api(FM_METHODS.LIST, { path: dirPath, sessionId: store.sessionId, root: store.root })
       if (!r || !r.ok) {
-        if (onError) onError((r && r.error) || '加载失败')
+        if (onError) onError((r && (r.message || r.error)) || '加载失败')
         return
-      }
-      const childPaths = []
-      const additions = {}
-      for (const e of r.entries) {
-        const p = norm(e.path)
-        childPaths.push(p)
-        additions[p] = { path: p, name: e.name, type: e.type, size: e.size == null ? null : e.size, loaded: false, expanded: false, loading: false, childPaths: [], hasGit: !!(e.hasGit) }
       }
       setTree((t) => {
         const cur = t[dirPath]
         const name = (cur && cur.name) || base(dirPath) || dirPath
+        // 合并式刷新：已存在节点仅更新数据元信息，UI 状态（loaded/expanded/childPaths）保留 ——
+        // 任何来源（轮询/索引后刷新/提交后刷新）的重刷都不会让用户展开的子目录收起
+        const { childPaths, additions, removed } = mergeListing(t, dirPath, r.entries)
         const next = {}
         for (const k of Object.keys(t)) {
-          if (cur && cur.childPaths && cur.childPaths.indexOf(k) !== -1 && childPaths.indexOf(k) === -1) continue
+          if (removed.indexOf(k) !== -1) continue
           next[k] = t[k]
         }
         return Object.assign(next, additions, {
