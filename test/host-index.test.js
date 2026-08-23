@@ -141,6 +141,40 @@ test('批量加入（recursive=true）：非锚定子项条目保留（可能匹
   assert.equal(fs.getIgnore().includes('/docs/'), false, '文件夹条目移除')
 })
 
+test('关键回归：加入未跟踪文件（无任何 .gitignore 条目）→ 执行 git add（勾选纳入不再无作用）', async () => {
+  const shell = makeFakeShell()
+  wireGit(shell, { tracked: false })
+  const fs = makeFs(['/ws']) // ignore 为空
+  const h = createFmCore(makeServices(shell, fs))
+  const r = await h['fm-git-index-set']({ path: '/ws/docs/new.md', checked: true, recursive: false, anchor: '/ws' })
+  assert.equal(r.ok, true)
+  assert.equal(r.changed, true, '未跟踪文件加入索引应产生变更')
+  assert.ok(shell.calls.some((c) => c.includes('add -A --')), '无忽略条目也必须 git add: ' + shell.calls.join(' | '))
+})
+
+test('关键回归：加入未跟踪目录（无任何 .gitignore 条目）→ 执行 git add 整目录', async () => {
+  const shell = makeFakeShell()
+  wireGit(shell, { tracked: false })
+  const fs = makeFs(['/ws'])
+  const h = createFmCore(makeServices(shell, fs))
+  const r = await h['fm-git-index-set']({ path: '/ws/newdir', checked: true, recursive: true, anchor: '/ws' })
+  assert.equal(r.ok, true)
+  assert.equal(r.changed, true)
+  const addCmd = shell.calls.find((c) => c.includes('add -A --'))
+  assert.ok(addCmd && addCmd.includes("'newdir'"), '应 add 整个目录: ' + addCmd)
+})
+
+test('已跟踪且无忽略条目 → no-op（changed:false 且不 add）', async () => {
+  const shell = makeFakeShell()
+  wireGit(shell, { tracked: true })
+  const fs = makeFs(['/ws'])
+  const h = createFmCore(makeServices(shell, fs))
+  const r = await h['fm-git-index-set']({ path: '/ws/docs/a.md', checked: true, recursive: false, anchor: '/ws' })
+  assert.equal(r.ok, true)
+  assert.equal(r.changed, false)
+  assert.equal(shell.calls.some((c) => c.includes('add -A --')), false, '已跟踪路径无需 add')
+})
+
 test('read-only 会话 → sandbox-denied（写操作被拒）', async () => {
   const shell = makeFakeShell()
   wireGit(shell, { tracked: false })
