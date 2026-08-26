@@ -1,7 +1,7 @@
 # dsh-fm — DSH 工作目录文件管理器
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![npm test](https://img.shields.io/badge/tests-58%20passing-brightgreen.svg)](./test)
+[![verify](https://github.com/frankzhan-git/dsh-fm/actions/workflows/verify.yml/badge.svg)](https://github.com/frankzhan-git/dsh-fm/actions/workflows/verify.yml)
 
 一个 [DeepSeek Harness (DSH)](https://www.npmjs.com/package/@deepseek-ai/dsh) Web 插件：在**会话输入框工具行**提供「文件」入口（与「界面草图」同区），树形浏览当前工作目录，只读预览代码/图片/Markdown/Mermaid，并以「看得懂」的方式可视化 Git 变更。完全开源。
 
