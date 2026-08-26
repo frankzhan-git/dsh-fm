@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.3] — 修复：git init 默认分支/main + 默认 .gitignore + 安装初始化状态缓存失效
+
+- **现象**：双击进入无仓库目录点「初始化」后，`git status`/提交等操作仍可能按旧仓库响应；初始化产物缺默认分支名与忽略规则
+- **修复一**（`lib/fm-core/git.js` `gitInitWithDefaults`，`fm-git-init` 改用）：`git init -b main` 走默认分支；旧版 git 回退裸 `git init` + `symbolic-ref HEAD refs/heads/main`（**仅新仓库**改 HEAD，不打扰已有仓库分支名）；先 `rev-parse --git-dir` 探测是否已有仓库，已是仓库则不重复 init；缺失时写入默认 `.gitignore`（node_modules/ 等，已存在绝不覆盖，顺带兜底历史未忽略仓库）
+- **修复二**（`lib/fm-core/git-install.js` `fm-git-install-init`）：初始化成功后 `statusCache.invalidate(anchor)`，避免旧缓存条目（无仓库/旧分支）污染后续状态
+- **测试**：更新 init 命令序列断言（`rev-parse --git-dir` → `git init -b main`），新增「新仓库写入默认 .gitignore，已存在则不覆盖」用例，137 例全通过
+
+## [0.8.2] — 修复：未索引目录（未跟踪 ??）胶囊误显示上层仓库工具条
+
+- **现象**：双击进入无独立仓库且未被上层仓库索引的目录（如 `dsh-mermaid-plugin` —— 未跟踪 `??` 且无 `.git`）时，胶囊显示的是上层仓库的 `+/−` 工具条（dsh-mermaid-plugin 场景）
+- **根因**：`fm-git-status` 的 `anchorIndexed` 只按 porcelain `ignored`（`!!`）判定「锚点是否被仓库索引」，漏掉了另一半——未跟踪（`??`）。整目录未跟踪时 porcelain 折叠为顶层 `?? dir/` 条目，锚点恰好就是该条目，但被误判为已索引 → 渲染工具条而非初始化胶囊；与既有的索引语义 v2（未索引 = 未跟踪 ∪ 已忽略）不一致
+- **修复**（`lib/fm-core/git.js`）：`anchorIndexedOf(ignored, untracked)` 同时覆盖 `!!` 与 `??` 两类条目（锚点自身或任一祖先命中即未索引）；`untrackedOf` 从 status 的 `files`（`untracked:true` 条目路径）提取候选；缓存命中分支同样生效。混合目录（`?? dir/file`）中锚点为条目祖先 → 不命中 → 保持工具条（锚点已被索引）
+- **测试**：新增 4 例（整目录未跟踪 `??` → 未索引；祖先未跟踪 → 未索引；锚点被索引但其下未跟踪文件 → 工具条回归防线；缓存命中同样判定未索引），136 例全通过
+
 ## [0.8.1] — 修复：未跟踪文件/目录勾选「加入索引」无作用
 
 - **根因**：「加入索引」分支用 `changed`（仅代表"移除了 .gitignore 条目"）短路——对**未跟踪且无忽略条目**的文件（如新文件 `docs/dsh-insight-plugin-design.md`）与整目录未跟踪场景，没有条目可移除 → 提前返回，`git add`（纳入索引的核心动作）永不执行 → 勾选无效
