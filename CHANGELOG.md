@@ -6,6 +6,7 @@
 - **修复一**（`lib/fm-core/git.js` `gitInitWithDefaults`，`fm-git-init` 改用）：`git init -b main` 走默认分支；旧版 git 回退裸 `git init` + `symbolic-ref HEAD refs/heads/main`（**仅新仓库**改 HEAD，不打扰已有仓库分支名）；先 `rev-parse --git-dir` 探测是否已有仓库，已是仓库则不重复 init；缺失时写入默认 `.gitignore`（node_modules/ 等，已存在绝不覆盖，顺带兜底历史未忽略仓库）
 - **修复二**（`lib/fm-core/git-install.js` `fm-git-install-init`）：初始化成功后 `statusCache.invalidate(anchor)`，避免旧缓存条目（无仓库/旧分支）污染后续状态
 - **测试**：更新 init 命令序列断言（`rev-parse --git-dir` → `git init -b main`），新增「新仓库写入默认 .gitignore，已存在则不覆盖」用例，137 例全通过
+- **质量**：新增 GitHub Actions verify 工作流（ubuntu + Node 20，`npm ci` + `npm test`）+ README 徽章；`test` 脚本改为 `node --test` 默认发现（跨平台/跨 Node 版本 glob 兼容）
 
 ## [0.8.2] — 修复：未索引目录（未跟踪 ??）胶囊误显示上层仓库工具条
 

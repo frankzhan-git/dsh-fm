@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test"
   },
   "dependencies": {
     "mermaid": "^11.4.1"
