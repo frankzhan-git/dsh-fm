@@ -68,9 +68,14 @@ const merged = (probe, unstaged, cached, porcelain) => ({
   stderr: { text: '' },
 })
 
-test('quote 在 Windows（当前平台）使用 PowerShell 单引号转义', () => {
-  assert.equal(quote("a'b"), "'a''b'")
-  assert.equal(quote('plain'), "'plain'")
+test('quote 按平台转义：Windows → PowerShell 单引号，POSIX → 反斜杠', () => {
+  if (process.platform === 'win32') {
+    assert.equal(quote("a'b"), "'a''b'")
+    assert.equal(quote('plain'), "'plain'")
+  } else {
+    assert.equal(quote("a'b"), "'a'\\''b'")
+    assert.equal(quote('plain'), "'plain'")
+  }
 })
 
 test('gitCmd 自动补 git 前缀，已带前缀则透传', async () => {

@@ -74,34 +74,43 @@ const reCache = {}
 const kwRe = (list) => '\\b(?:' + list.join('|') + ')\\b'
 
 function buildRe(conf) {
+  // 注意：不同语言可有多个注释正则（如 // 与 /* */），若共用同一个命名分组名会在
+  // 同一表达式里产生「重复捕获组名」（多个分支同名组；Node < 22 直接抛 SyntaxError）。
+  // 因此用编号分组 + 平行类名数组，兼容性最好。
   const alts = []
-  for (const r of conf.cm || []) alts.push('(?<cm>' + r.source + ')')
-  alts.push('(?<st>' + RE_STR.source + ')')
-  if (conf.kw && conf.kw.length) alts.push('(?<kw>' + kwRe(conf.kw) + ')')
-  alts.push('(?<nm>' + RE_NUM.source + ')')
-  alts.push('(?<fn>' + RE_FN.source + ')')
+  const cls = []
+  for (const r of conf.cm || []) { alts.push('(' + r.source + ')'); cls.push('cm') }
+  alts.push('(' + RE_STR.source + ')'); cls.push('st')
+  if (conf.kw && conf.kw.length) { alts.push('(' + kwRe(conf.kw) + ')'); cls.push('kw') }
+  alts.push('(' + RE_NUM.source + ')'); cls.push('nm')
+  alts.push('(' + RE_FN.source + ')'); cls.push('fn')
   if (conf.tags) {
-    alts.push('(?<tg>' + RE_TAG.source + ')')
-    alts.push('(?<at>' + RE_ATTR.source + ')')
+    alts.push('(' + RE_TAG.source + ')'); cls.push('tg')
+    alts.push('(' + RE_ATTR.source + ')'); cls.push('at')
   }
-  return new RegExp(alts.join('|'), 'g')
+  return { re: new RegExp(alts.join('|'), 'g'), cls }
 }
 
 export function langFor(ext) { return LANG[EXT_LANG[ext] || 'text'] || LANG.text }
 
 // 将代码切为 { t: 文本, c: 高亮类名（'' 表示普通文本）} 列表
 export function tokenize(code, conf) {
-  let re = reCache[conf]
-  if (!re) { re = buildRe(conf); reCache[conf] = re }
+  let entry = reCache[conf]
+  if (!entry) { entry = buildRe(conf); reCache[conf] = entry }
+  const re = entry.re
+  const cls = entry.cls
   const out = []
   re.lastIndex = 0
   let last = 0
   let m
   while ((m = re.exec(code))) {
     if (m.index > last) out.push({ t: code.slice(last, m.index), c: '' })
-    const g = m.groups || {}
-    const cls = g.cm ? 'cm' : g.st ? 'st' : g.kw ? 'kw' : g.nm ? 'nm' : g.fn ? 'fn' : g.tg ? 'tg' : g.at ? 'at' : ''
-    out.push({ t: m[0], c: cls })
+    // 编号分组 → 类名：命中第 i 个捕获组即取第 i 个类
+    let c = ''
+    for (let i = 0; i < cls.length; i++) {
+      if (m[i + 1] !== undefined) { c = cls[i]; break }
+    }
+    out.push({ t: m[0], c })
     last = m.index + m[0].length
     if (m[0].length === 0) re.lastIndex++
   }
