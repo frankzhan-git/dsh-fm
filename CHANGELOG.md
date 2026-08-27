@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.0] — npm 首发：模块名改 ASCII + 包元数据补全
+
+- **模块名**：`dsh文件管理器` → `dsh-fm`（`cordis.patch.yml` 的 name 与 `scripts/build.mjs` 的 banner id 同步；本地中文目录联接不再需要，插件管理器显示 "fm"）
+- **package.json**：移除 `private`，新增 license（MIT）/repository/author/keywords/engines/files；`mermaid` 移至 devDependencies（client 已内联，host 半区不引用）
+- **发布**：首次发布 npm（dsh-fm@0.9.0），`prepublishOnly` 自动构建
+
 ## [0.8.3] — 修复：git init 默认分支/main + 默认 .gitignore + 安装初始化状态缓存失效
 
 - **现象**：双击进入无仓库目录点「初始化」后，`git status`/提交等操作仍可能按旧仓库响应；初始化产物缺默认分支名与忽略规则

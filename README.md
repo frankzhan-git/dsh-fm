@@ -39,11 +39,15 @@ dsh-fm 不是给研发人员准备的又一款 git 客户端。它服务的场�
 - **性能**：git 状态一次 shell 调用获取（探测 + 双段 numstat + porcelain 合并），1.5s 短 TTL 缓存（导航/轮询去抖，提交/初始化/索引变更自动失效），导航即时刷新并丢弃过期响应，目录 `.git` 探测并行化；host 启动预热 git 探测（首个请求命中缓存）；端到端超时预算单一副本（`shared/contract/fm-limits.js`：probe 6s ≤ 单命令 8s ≤ status 12s < 客户端 20s < 官方信使 30s 兜底）
 - **体验细节**：上下滚动渐变蒙层、未索引内容悬停恢复亮度、250ms 手动双击检测、路径行精简显示（长路径省略）、DSH 主题 token 自适应（深浅色跟随）；**树列表合并式刷新**——轮询/索引调整/提交后的重刷仅更新数据元信息，用户展开/加载状态永不重置（`core/tree-merge.js`）；索引/提交/初始化后统一走 `refreshAfterGitMutation()` 管线
 
-## 快速安装（免构建）
+## 安装（npm）
 
-> 推荐直接下载现成安装包：**[Releases 页面](https://github.com/frankzhan-git/dsh-fm/releases)** 下载 `dsh-fm-0.8.0.zip`，解压后运行其中的 `install.ps1` 一键安装（内置安装/使用文档）。
+> 要求：已安装 DSH（`dsh` 在 PATH）、Node ≥ 20、pnpm。
 
-> 说明：`lib/client.js` 为构建产物（`npm run build` 生成），已移出 git 跟踪；Release 安装包内包含最新构建产物。
+```powershell
+dsh plugin --profile web add dsh-fm
+```
+
+`dsh plugin` 会安装依赖并自动把 dsh-fm 加入 profile 的 `dsh.profile.bundles`；重启 DSH 后输入框工具行出现「文件」按钮（插件管理器显示名 "fm"）。
 
 ## 从源码安装
 
@@ -55,18 +59,7 @@ npm run build   # 生成 lib/client.js
 dsh plugin --profile web add "file:<克隆目录绝对路径>"
 ```
 
-然后创建中文显示名的目录联接（插件管理器显示「dsh文件管理器」；pnpm 不接受中文依赖键，中文名需通过联接解析）：
-
-- **Windows**（PowerShell）：
-  ```powershell
-  cmd /c mklink /J "%USERPROFILE%\.dsh\profiles\node_modules\dsh文件管理器" "%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-fm"
-  ```
-- **Linux / macOS**（bash）：
-  ```bash
-  ln -s ~/.dsh/profiles/web/node_modules/dsh-fm ~/.dsh/profiles/node_modules/dsh文件管理器
-  ```
-
-最后重启 DSH 并刷新页面。**如果不需要中文名**，把 `cordis.patch.yml` 中的 `name: dsh文件管理器` 改为 `name: dsh-fm` 即可跳过联接步骤（管理器将显示 "fm"）。
+> npm 安装的包模块名即为 `dsh-fm`，无需目录联接；`dsh plugin add` 会处理安装与 bundles 注册。
 
 ## 从源码构建
 

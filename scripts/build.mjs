@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
 
 const banner = `window.__ModuleLoader__.load({
-  id: "dsh文件管理器",
+  id: "dsh-fm",
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;

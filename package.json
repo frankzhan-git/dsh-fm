@@ -1,24 +1,44 @@
 {
   "name": "dsh-fm",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "工作目录文件管理器：树形浏览、只读预览（代码/图片/Markdown/Mermaid）、Git 变更管理/仓库初始化/索引管理",
-  "private": true,
+  "license": "MIT",
+  "author": "FrankZhan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frankzhan-git/dsh-fm.git"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "file-manager",
+    "git"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml"
+  ],
   "scripts": {
     "build": "node scripts/build.mjs",
+    "prepublishOnly": "npm run build",
     "test": "node --test"
   },
-  "dependencies": {
-    "mermaid": "^11.4.1"
-  },
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "mermaid": "^11.4.1"
   },
   "dsh": {
     "client": {
